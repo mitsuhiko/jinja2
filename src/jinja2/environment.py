@@ -41,6 +41,7 @@ from .parser import Parser
 from .runtime import Context
 from .runtime import new_context
 from .runtime import Undefined
+from .tatsu import get_tatsu_lexer
 from .utils import concat
 from .utils import consume
 from .utils import have_async_gen
@@ -302,6 +303,7 @@ class Environment:
         auto_reload=True,
         bytecode_cache=None,
         enable_async=False,
+        tatsu_lexer=False,
     ):
         # !!Important notice!!
         #   The constructor accepts quite a few arguments that should be
@@ -327,6 +329,7 @@ class Environment:
         self.lstrip_blocks = lstrip_blocks
         self.newline_sequence = newline_sequence
         self.keep_trailing_newline = keep_trailing_newline
+        self.tatsu_lexer = tatsu_lexer
 
         # runtime information
         self.undefined = undefined
@@ -433,7 +436,13 @@ class Environment:
 
         return _environment_sanity_check(rv)
 
-    lexer = property(get_lexer, doc="The lexer for this environment.")
+    def lexer_getter(self):
+        if self.tatsu_lexer:
+            return get_tatsu_lexer(self)
+        else:
+            return get_lexer(self)
+
+    lexer = property(lexer_getter, doc="The lexer for this environment.")
 
     def iter_extensions(self):
         """Iterates over the extensions by priority."""
