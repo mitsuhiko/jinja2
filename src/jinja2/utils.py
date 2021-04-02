@@ -68,13 +68,17 @@ def internalcode(f):
     internal_code.add(f.__code__)
     return f
 
+
 def wrap_custom_escape(f):
     """Make sure to not call a custom escape function if string was already eascped"""
+
     def custom_escape(s):
-        if hasattr('s', '__html__'):
+        if hasattr("s", "__html__"):
             return s
         return Markup(f(s))
+
     return custom_escape
+
 
 def is_undefined(obj):
     """Check if the object passed is undefined.  This does nothing more than
@@ -561,9 +565,50 @@ class LRUCache:
     __copy__ = copy
 
 
+def do_latex_escape(value: str) -> str:
+    """
+    Replace all LaTeX characters that could cause the latex compiler to fail
+    and at the same time try to display the character as intended from the user.
+
+    see also https://tex.stackexchange.com/questions/34580/escape-character-in-latex
+    """
+
+    return (
+        # Replace Backslashes so we dont' double replace backslashes
+        value.replace("\\", BACKSLASH_REPLACEMENT)
+        # If there was a space before the character we assume the user wants
+        # it also in the displayed LaTeX text
+        .replace(BACKSLASH_REPLACEMENT + " ", r"\textbackslash\space ")
+        # Otherwise we assume it doesn't matter. Note the space at the end is
+        # required that an additional text is not considered as part of the latex
+        # command
+        .replace(BACKSLASH_REPLACEMENT, r"\textbackslash ")
+        # Do the same for ~ and ^
+        .replace("~ ", r"\textasciitilde\space ")
+        .replace("~", r"\textasciitilde ")
+        .replace("^ ", r"\textasciicircum\space ")
+        .replace("^", r"\textasciicircum ")
+        .replace("&", r"\&")
+        .replace("$", r"\$")
+        .replace("%", r"\%")
+        .replace("#", r"\#")
+        .replace("_", r"\_")
+        .replace("{", r"\{")
+        .replace("}", r"\}")
+        # Replace vertical tab as this seems to be the only character from
+        # string.printable that can't be consumed from LaTeX
+        .replace(chr(11), "")
+    )
+
+
+def _get_default_special_extensions():
+    return {"tex": do_latex_escape}
+
+
 def select_autoescape(
     enabled_extensions=("html", "htm", "xml"),
     disabled_extensions=(),
+    special_extensions=_get_default_special_extensions(),
     default_for_string=True,
     default=False,
 ):
@@ -601,13 +646,32 @@ def select_autoescape(
 
     .. versionadded:: 2.9
     """
-    enabled_patterns = tuple(f".{x.lstrip('.').lower()}" for x in enabled_extensions)
-    disabled_patterns = tuple(f".{x.lstrip('.').lower()}" for x in disabled_extensions)
+    # TODO Update Documentation
+
+    def extension_str(x):
+        """return a lower case extension always starting with point"""
+        return f".{x.lstrip('.').lower()}"
+
+    enabled_patterns = tuple(extension_str(x) for x in enabled_extensions)
+    disabled_patterns = tuple(extension_str(x) for x in disabled_extensions)
+
+    special_extensions = {
+        extension_str(key): func for key, func in special_extensions.items()
+    }
 
     def autoescape(template_name):
         if template_name is None:
             return default_for_string
         template_name = template_name.lower()
+        # create dictionary so that have lower case keys sorted from longest
+        # to shortest, so we can easily find the best match
+        # i.e. if there are .la.tex and .tex endings in the dictionary,
+        # .la.tex ending should be found if the filename if .la.tex is given
+        for key, func in sorted(
+            special_extensions.items(), key=lambda x: len(x[0]), reverse=True
+        ):
+            if template_name.endswith(key):
+                return func
         if template_name.endswith(enabled_patterns):
             return True
         if template_name.endswith(disabled_patterns):

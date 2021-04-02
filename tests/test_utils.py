@@ -135,6 +135,34 @@ class TestHelpers:
         assert func("FOO.HTML")
         assert not func("FOO.TXT")
 
+    def test_autoescape_select_special(self):
+        def foobar(s):
+            return s.replace("foo", "bar")
+
+        def barfoo(s):
+            return s.replace("bar", "foo")
+
+        func = select_autoescape(
+            special_extensions={
+                ".Tex": foobar,
+                "la.tex": barfoo,
+            },
+            default="NONE",
+            default_for_string="STRING",
+            enabled_extensions=(".HTML", "htm"),
+            disabled_extensions=("txt",),
+        )
+        assert func(None) == "STRING"
+        assert func("unknown.foo") == "NONE"
+        assert func("foo.html")
+        assert func("foo.htm")
+        assert not func("foo.txt")
+        assert func("FOO.HTML")
+        assert not func("FOO.TXT")
+        assert func("FOO.LA.TEX").__name__ == barfoo.__name__
+        assert func("FOO.TEX").__name__ == foobar.__name__
+        assert func("FOO.NETEX") == "NONE"
+
 
 class TestEscapeUrlizeTarget:
     def test_escape_urlize_target(self):
