@@ -149,6 +149,7 @@ def _make_new_gettext(func):
         # Always treat as a format string, even if there are no
         # variables. This makes translation strings more consistent
         # and predictable. This requires escaping
+        # TODO: Currently not working with custom escapes, fix in future
         return rv % variables
 
     return gettext
@@ -162,6 +163,7 @@ def _make_new_ngettext(func):
         if __context.eval_ctx.autoescape:
             rv = Markup(rv)
         # Always treat as a format string, see gettext comment above.
+        # TODO: Currently not working with custom escapes, fix in future
         return rv % variables
 
     return ngettext

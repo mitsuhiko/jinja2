@@ -732,8 +732,9 @@ class CodeGenerator(NodeVisitor):
             f"{self.func('root')}(context, missing=missing{envenv}):", extra=1
         )
         self.indent()
+        # make sure in the root render function the correct escape is used
+        self.writeline("escape = context.eval_ctx.get_escape_function()")
         self.write_commons()
-
         # process the root
         frame = Frame(eval_ctx)
         if "self" in find_undeclared(node.body, ("self",)):
@@ -1292,6 +1293,7 @@ class CodeGenerator(NodeVisitor):
         """
         const = node.as_const(frame.eval_ctx)
 
+
         if frame.eval_ctx.autoescape:
             const = escape(const)
 
@@ -1578,7 +1580,12 @@ class CodeGenerator(NodeVisitor):
         for arg in node.nodes:
             self.visit(arg, frame)
             self.write(", ")
-        self.write("))")
+        self.write(")")
+        # in case we have a custom autoescape we need to consider it
+        if callable(frame.eval_ctx.autoescape):
+            # We assume that filter
+            self.write("escape=context.eval_ctx.autoescape")
+        self.write(")")
 
     @optimizeconst
     def visit_Compare(self, node, frame):

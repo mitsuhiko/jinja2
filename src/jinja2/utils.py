@@ -68,6 +68,13 @@ def internalcode(f):
     internal_code.add(f.__code__)
     return f
 
+def wrap_custom_escape(f):
+    """Make sure to not call a custom escape function if string was already eascped"""
+    def custom_escape(s):
+        if hasattr('s', '__html__'):
+            return s
+        return Markup(f(s))
+    return custom_escape
 
 def is_undefined(obj):
     """Check if the object passed is undefined.  This does nothing more than

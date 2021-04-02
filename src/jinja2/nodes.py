@@ -8,7 +8,8 @@ from collections import deque
 from typing import Any
 from typing import Tuple as TupleType
 
-from markupsafe import Markup
+from jinja2.utils import wrap_custom_escape
+from markupsafe import Markup, escape as html_escape
 
 _binop_to_func = {
     "*": operator.mul,
@@ -71,6 +72,11 @@ class EvalContext:
         else:
             self.autoescape = environment.autoescape
         self.volatile = False
+
+    def get_escape_function(self):
+        if callable(self.autoescape):
+            return wrap_custom_escape(self.autoescape)
+        return html_escape
 
     def save(self):
         return self.__dict__.copy()

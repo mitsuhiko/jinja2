@@ -7,7 +7,7 @@ from collections import namedtuple
 from itertools import chain
 from itertools import groupby
 
-from markupsafe import escape
+from markupsafe import escape as html_escape
 from markupsafe import Markup
 from markupsafe import soft_str
 
@@ -17,10 +17,10 @@ from .utils import htmlsafe_json_dumps
 from .utils import pformat
 from .utils import url_quote
 from .utils import urlize
+from .nodes import EvalContext
 
 _word_re = re.compile(r"\w+")
 _word_beginning_split_re = re.compile(r"([-\s({\[<]+)")
-
 
 def contextfilter(f):
     """Decorator for marking context dependent filters. The current
@@ -47,6 +47,11 @@ def environmentfilter(f):
     """
     f.environmentfilter = True
     return f
+
+
+@evalcontextfilter
+def escape(eval_ctx: EvalContext, s: str):
+    return eval_ctx.get_escape_function()(s)
 
 
 def ignore_case(value):
@@ -120,12 +125,12 @@ def _prepare_attribute_parts(attr):
     else:
         return [attr]
 
-
-def do_forceescape(value):
+@evalcontextfilter
+def do_forceescape(eval_ctx, value):
     """Enforce HTML escaping.  This will probably double escape variables."""
     if hasattr(value, "__html__"):
         value = value.__html__()
-    return escape(str(value))
+    return escape(eval_ctx, str(value))
 
 
 def do_urlencode(value):
@@ -182,7 +187,7 @@ def do_replace(eval_ctx, s, old, new, count=None):
         or hasattr(new, "__html__")
         and not hasattr(s, "__html__")
     ):
-        s = escape(s)
+        s = escape(eval_ctx, s)
     else:
         s = soft_str(s)
     return s.replace(soft_str(old), soft_str(new), count)
@@ -223,7 +228,7 @@ def do_xmlattr(_eval_ctx, d, autospace=True):
     if the filter returned something unless the second parameter is false.
     """
     rv = " ".join(
-        f'{escape(key)}="{escape(value)}"'
+        f'{html_escape(key)}="{html_escape(value)}"'
         for key, value in d.items()
         if value is not None and not isinstance(value, Undefined)
     )
@@ -482,7 +487,7 @@ def do_join(eval_ctx, value, d="", attribute=None):
             else:
                 value[idx] = str(item)
         if do_escape:
-            d = escape(d)
+            d = escape(eval_ctx, d)
         else:
             d = str(d)
         return d.join(value)

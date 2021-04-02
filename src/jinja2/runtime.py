@@ -5,7 +5,7 @@ from collections import abc
 from itertools import chain
 from types import MethodType
 
-from markupsafe import escape  # noqa: F401
+from markupsafe import escape as html_escape # noqa: F401
 from markupsafe import Markup
 from markupsafe import soft_str
 
@@ -29,7 +29,7 @@ exported = [
     "TemplateRuntimeError",
     "missing",
     "concat",
-    "escape",
+    "html_escape",
     "markup_join",
     "str_join",
     "identity",
@@ -46,14 +46,14 @@ def identity(x):
     return x
 
 
-def markup_join(seq):
+def markup_join(seq, escape_func=html_escape):
     """Concatenation that escapes if necessary and converts to string."""
     buf = []
     iterator = map(soft_str, seq)
     for arg in iterator:
         buf.append(arg)
         if hasattr(arg, "__html__"):
-            return Markup("").join(chain(buf, iterator))
+            return "".join(map(escape_func, chain(buf, iterator)))
     return concat(buf)
 
 
