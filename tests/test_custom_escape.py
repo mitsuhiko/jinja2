@@ -33,6 +33,16 @@ class TestCustomAutoescape:
         # Make sure the result was marked as escaped
         assert escape(source % target) == "$foo,$bar,$dollar"
 
+    def test_eval_contex(self, env_custom_autoescape):
+        t = env_custom_autoescape.from_string(
+            "{% autoescape true %}|{{ foo }}|{% endautoescape %}"
+        )
+        assert t.render(foo="bar$>") == "|bar€>|"
+        t = env_custom_autoescape.from_string(
+            "{% autoescape false %}|{{ foo }}|{% endautoescape %}"
+        )
+        assert t.render(foo="bar$>") == "|bar$>|"
+
     def test_custom_modulo(self, env_custom_autoescape):
         from jinja2.nodes import EvalContext
 

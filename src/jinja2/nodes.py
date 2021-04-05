@@ -73,8 +73,17 @@ class EvalContext:
             self.autoescape = environment.autoescape
         self.volatile = False
 
-    def get_escape_function(self) -> Callable[[Any], Markup]:
+        # We need to save escape function as autoescape can be
+        # overwritten by {% autoescape %} environment.
         if callable(self.autoescape):
+            self._escape_func = self.autoescape
+            self._wrapping_required = True
+        else:
+            self._escape_func = self.environment.default_markup_class.escape
+            self._wrapping_required = False
+
+    def get_escape_function(self) -> Callable[[Any], Markup]:
+        if self._wrapping_required:
 
             def custom_escape_wrapper(s):
                 """
@@ -85,10 +94,10 @@ class EvalContext:
                 """
                 if hasattr(s, "__html__"):
                     return s
-                return self.mark_safe(self.autoescape(s))
+                return self.mark_safe(self._escape_func(s))
 
             return custom_escape_wrapper
-        return self.environment.default_markup_class.escape
+        return self._escape_func
 
     def mark_safe(outer_self, input: str) -> Markup:  # noqa: B902
         class MarkupWrapper(Markup):
