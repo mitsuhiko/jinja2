@@ -99,6 +99,14 @@ class EvalContext:
         return self._escape_func
 
     def mark_safe(outer_self, input: str) -> Markup:  # noqa: B902
+        """
+        Mark a string as safe by creating a Markup class
+
+        use this function instead of direct calls to Markup
+        if possible so custom escape functions
+        are correctly handeled by the Markup class.
+        """
+
         class MarkupWrapper(Markup):
             """
             Make sure that the custom escape function is used
@@ -568,7 +576,7 @@ class TemplateData(Literal):
         if eval_ctx.volatile:
             raise Impossible()
         if eval_ctx.autoescape:
-            return Markup(self.data)
+            return eval_ctx.mark_safe(self.data)
         return self.data
 
 
@@ -1012,7 +1020,7 @@ class MarkSafeIfAutoescape(Expr):
             raise Impossible()
         expr = self.expr.as_const(eval_ctx)
         if eval_ctx.autoescape:
-            return Markup(expr)
+            return eval_ctx.mark_safe(expr)
         return expr
 
 

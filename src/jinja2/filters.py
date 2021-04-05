@@ -8,7 +8,6 @@ from collections import abc
 from itertools import chain
 from itertools import groupby
 
-from markupsafe import escape as html_escape
 from markupsafe import Markup
 from markupsafe import soft_str
 
@@ -268,8 +267,12 @@ def do_xmlattr(
     As you can see it automatically prepends a space in front of the item
     if the filter returned something unless the second parameter is false.
     """
+    # even so we assume that the user want the HTML escape here
+    # we give them the chance to use a custum function to escape
+    # even more
+    escape = eval_ctx.get_escape_function()
     rv = " ".join(
-        f'{html_escape(key)}="{html_escape(value)}"'
+        f'{escape(key)}="{escape(value)}"'
         for key, value in d.items()
         if value is not None and not isinstance(value, Undefined)
     )
@@ -278,7 +281,11 @@ def do_xmlattr(
         rv = " " + rv
 
     if eval_ctx.autoescape:
-        rv = Markup(rv)
+        # We don't assume that using this filter we will use a custom
+        # escape function. But for the sake of completeness we use
+        # the custom mark safe funtion from the eval context here as
+        # well
+        rv = eval_ctx.mark_safe(rv)
 
     return rv
 
@@ -1198,11 +1205,17 @@ def do_list(value: "t.Iterable[V]") -> "t.List[V]":
     return list(value)
 
 
+# @evalcontextfilter
+# eval_ctx: "EvalContext"
 def do_mark_safe(value: str) -> Markup:
     """Mark the value as safe which means that in an environment with automatic
     escaping enabled this variable will not be escaped.
     """
+    # TODO This should be also an evalcontext filter but some
+    #      test are failing if it is
+    #      We need to figure out why this is happening!
     return Markup(value)
+    # return eval_ctx.mark_safe(value)
 
 
 def do_mark_unsafe(value: str) -> str:

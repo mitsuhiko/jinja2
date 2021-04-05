@@ -1326,6 +1326,8 @@ class TemplateModule:
         self.__name__ = template.name
 
     def __html__(self):
+        # TODO Find and write some test with autoencoding and
+        #      imported templates
         return Markup(concat(self._body_stream))
 
     def __str__(self):

@@ -374,7 +374,7 @@ class BlockReference:
     def __call__(self):
         rv = concat(self._stack[self._depth](self._context))
         if self._context.eval_ctx.autoescape:
-            rv = Markup(rv)
+            rv = self._context.eval_ctx.mark_safe(rv)
         return rv
 
 
@@ -678,6 +678,8 @@ class Macro:
         """This method is being swapped out by the async implementation."""
         rv = self._func(*arguments)
         if autoescape:
+            # TODO We need to take care of this Markup call for
+            #      custom escape functions
             rv = Markup(rv)
         return rv
 
