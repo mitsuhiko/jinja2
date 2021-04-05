@@ -10,7 +10,6 @@ from typing import Callable
 from typing import Tuple as TupleType
 
 from markupsafe import Markup
-from src.jinja2 import Environment
 
 _binop_to_func = {
     "*": operator.mul,
@@ -66,7 +65,7 @@ class EvalContext:
     to it in extensions.
     """
 
-    def __init__(self, environment: Environment, template_name=None):
+    def __init__(self, environment, template_name=None):
         self.environment = environment
         if callable(environment.autoescape):
             self.autoescape = environment.autoescape(template_name)

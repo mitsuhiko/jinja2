@@ -67,3 +67,10 @@ def return_custom_autoescape():
         return dollar_to_eur
 
     return do_return_autoescape
+
+@pytest.fixture
+def env_custom_autoescape(return_custom_autoescape):
+    """return a simple example for a custom escape function"""
+    return Environment(autoescape=return_custom_autoescape)
+
+
