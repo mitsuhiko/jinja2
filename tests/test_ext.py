@@ -27,6 +27,7 @@ i18n_templates = {
     "plural2.html": "{% trans user_count=get_user_count() %}{{ user_count }}s"
     "{% pluralize %}{{ user_count }}p{% endtrans %}",
     "stringformat.html": '{{ _("User: %(num)s")|format(num=user_count) }}',
+    "custom.foo": '{{ foo|default(_("ten $")) }}"',
 }
 
 newstyle_i18n_templates = {
@@ -51,6 +52,7 @@ newstyle_i18n_templates = {
 
 languages = {
     "de": {
+        "ten $": "zehn $",
         "missing": "fehlend",
         "watch out": "pass auf",
         "One user online": "Ein Benutzer online",
@@ -479,6 +481,29 @@ class TestNewstyleInternationalization:
         )
         assert t.render(ae=True) == "<strong>Wert: &lt;test&gt;</strong>"
         assert t.render(ae=False) == "<strong>Wert: <test></strong>"
+
+    def test_custom_autoescape_support(self, return_custom_autoescape):
+        env = Environment(
+            extensions=["jinja2.ext.i18n"], autoescape=return_custom_autoescape
+        )
+        env.install_gettext_callables(
+            lambda x: "<strong>Wert: %(name)s</strong>",
+            lambda s, p, n: s,
+            newstyle=True,
+        )
+        # First test default behaviour
+        t = env.from_string("{{ foo }}")
+        assert t.render(foo="bar$") == "bar€"
+
+        t = env.from_string('{{ gettext("foo", name="$test$") }}')
+        assert t.render() == "<strong>Wert: €test€</strong>"
+
+        t = env.from_string(
+            '{% autoescape ae %}{{ gettext("foo", name='
+            '"$test$") }}{% endautoescape %}'
+        )
+        assert t.render(ae=True) == "<strong>Wert: €test€</strong>"
+        assert t.render(ae=False) == "<strong>Wert: $test$</strong>"
 
     def test_autoescape_macros(self):
         env = Environment(autoescape=False)
