@@ -94,6 +94,9 @@ def wrap_macro_invoke(original_invoke):
     async def async_invoke(self, arguments, autoescape):
         rv = await self._func(*arguments)
         if autoescape:
+            # TODO Test for custom autoescape needed
+            # IMO this could fail but I can't think of a test that would
+            # trigger this fail
             rv = Markup(rv)
         return rv
 

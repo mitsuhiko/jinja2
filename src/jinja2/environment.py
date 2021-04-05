@@ -349,6 +349,7 @@ class Environment:
         self.undefined = undefined
         self.optimized = optimized
         self.finalize = finalize
+        # TODO Write test for this and use it
         self.default_markup_class = default_markup_class
         self.autoescape = autoescape
 
