@@ -77,7 +77,7 @@ def wrap_block_reference_call(original_call):
     async def async_call(self):
         rv = await concat_async(self._stack[self._depth](self._context))
         if self._context.eval_ctx.autoescape:
-            rv = Markup(rv)
+            rv = self._context.eval_ctx.mark_safe(rv)
         return rv
 
     @internalcode

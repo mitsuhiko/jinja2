@@ -6,10 +6,11 @@ import inspect
 import operator
 from collections import deque
 from typing import Any
+from typing import Callable
 from typing import Tuple as TupleType
 
-from jinja2.utils import wrap_custom_escape
-from markupsafe import Markup, escape as html_escape
+from markupsafe import Markup
+from src.jinja2 import Environment
 
 _binop_to_func = {
     "*": operator.mul,
@@ -65,7 +66,7 @@ class EvalContext:
     to it in extensions.
     """
 
-    def __init__(self, environment, template_name=None):
+    def __init__(self, environment: Environment, template_name=None):
         self.environment = environment
         if callable(environment.autoescape):
             self.autoescape = environment.autoescape(template_name)
@@ -73,10 +74,31 @@ class EvalContext:
             self.autoescape = environment.autoescape
         self.volatile = False
 
-    def get_escape_function(self):
+    def get_escape_function(self) -> Callable[[Any], Markup]:
         if callable(self.autoescape):
-            return wrap_custom_escape(self.autoescape)
-        return html_escape
+
+            def custom_escape_wrapper(s):
+                """
+                Make sure the custom escape function does not escape
+                already escaped strings
+                """
+                if hasattr(s, "__html__"):
+                    return s
+                return self.autoescape(s)
+
+            return custom_escape_wrapper
+        return self.environment.default_markup_class.escape
+
+    def mark_safe(outer_self, input: str) -> Markup:
+        class MarkupWrapper(Markup):
+            """
+            Make sure we overwrite all the correct functions
+            """
+
+            def escape(cls, s: Any):
+                return outer_self.get_escape_function()(s)
+
+        return MarkupWrapper(input)
 
     def save(self):
         return self.__dict__.copy()

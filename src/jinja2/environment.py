@@ -209,6 +209,15 @@ class Environment:
             expression before it is output.  For example one can convert
             ``None`` implicitly into an empty string here.
 
+        `default_markup_class`
+            a class that represents a safe input. Should be markupsafes
+            Markup class or an subclass of it overwriting the escape
+            function. The classes escape function is used as default
+            escape function.
+            Parameter defaults to Markup class of markupsafe
+
+            .. versionadded:: 3.0
+
         `autoescape`
             If set to ``True`` the XML/HTML autoescaping feature is enabled by
             default.  For more details about autoescaping see
@@ -216,6 +225,12 @@ class Environment:
             be a callable that is passed the template name and has to
             return ``True`` or ``False`` depending on autoescape should be
             enabled by default.
+
+
+
+            .. versionchanged:: 3.0
+                if `autoescape` function returns not True or False but a Callable
+                this is assumed to be a custom escape function
 
             .. versionchanged:: 2.4
                `autoescape` can now be a function
@@ -303,6 +318,7 @@ class Environment:
         auto_reload=True,
         bytecode_cache=None,
         enable_async=False,
+        default_markup_class=Markup,
     ):
         # !!Important notice!!
         #   The constructor accepts quite a few arguments that should be
@@ -333,6 +349,7 @@ class Environment:
         self.undefined = undefined
         self.optimized = optimized
         self.finalize = finalize
+        self.default_markup_class = default_markup_class
         self.autoescape = autoescape
 
         # defaults

@@ -275,6 +275,27 @@ class TestAsyncIncludes:
         )
         assert t.render().strip() == "(FOO)"
 
+    def test_unoptimized_scopes_custom_autoescape(self, return_autoescape):
+        env = Environment(
+            loader=DictLoader({"o_printer": "({{ o }})"}),
+            autoescape=return_autoescape,
+            enable_async=True,
+        )
+        t = env.from_string(
+            """
+            {% macro outer(o) %}
+            {% macro inner() %}
+            {% include "o_printer" %}
+            {% endmacro %}
+            {{ inner() }}
+            {% endmacro %}
+            {{ outer("$FOO$") }}
+        """
+        )
+        assert t.render().strip() == "(€FOO€)"
+
+    # here
+
 
 class TestAsyncForLoop:
     def test_simple(self, test_env_async):

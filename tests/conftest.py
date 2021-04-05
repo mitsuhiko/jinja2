@@ -54,3 +54,16 @@ def choice_loader(dict_loader, package_loader):
 def prefix_loader(filesystem_loader, dict_loader):
     """returns a PrefixLoader"""
     return loaders.PrefixLoader({"a": filesystem_loader, "b": dict_loader})
+
+
+@pytest.fixture
+def return_autoescape():
+    """return a simple example for a custom escape function"""
+
+    def do_return_autoescape(suffix):
+        def dollar_to_eur(s):
+            return s.replace("$", "€")
+
+        return dollar_to_eur
+
+    return do_return_autoescape

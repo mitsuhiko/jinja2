@@ -12,15 +12,16 @@ from markupsafe import Markup
 from markupsafe import soft_str
 
 from .exceptions import FilterArgumentError
+from .nodes import EvalContext
 from .runtime import Undefined
 from .utils import htmlsafe_json_dumps
 from .utils import pformat
 from .utils import url_quote
 from .utils import urlize
-from .nodes import EvalContext
 
 _word_re = re.compile(r"\w+")
 _word_beginning_split_re = re.compile(r"([-\s({\[<]+)")
+
 
 def contextfilter(f):
     """Decorator for marking context dependent filters. The current
@@ -50,7 +51,7 @@ def environmentfilter(f):
 
 
 @evalcontextfilter
-def escape(eval_ctx: EvalContext, s: str):
+def escape(eval_ctx: EvalContext, s: str) -> Markup:
     return eval_ctx.get_escape_function()(s)
 
 
@@ -124,6 +125,7 @@ def _prepare_attribute_parts(attr):
         return [int(x) if x.isdigit() else x for x in attr.split(".")]
     else:
         return [attr]
+
 
 @evalcontextfilter
 def do_forceescape(eval_ctx, value):

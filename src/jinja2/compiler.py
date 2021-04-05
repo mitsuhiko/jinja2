@@ -734,6 +734,9 @@ class CodeGenerator(NodeVisitor):
         self.indent()
         # make sure in the root render function the correct escape is used
         self.writeline("escape = context.eval_ctx.get_escape_function()")
+        # make sure in the root render function the coorect Markup
+        # class ise used
+        self.writeline("Markup = context.eval_ctx.mark_safe")
         self.write_commons()
         # process the root
         frame = Frame(eval_ctx)
@@ -1292,7 +1295,6 @@ class CodeGenerator(NodeVisitor):
         evaluated at runtime for easier debugging.
         """
         const = node.as_const(frame.eval_ctx)
-
 
         if frame.eval_ctx.autoescape:
             const = escape(const)

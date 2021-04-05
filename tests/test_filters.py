@@ -221,9 +221,15 @@ class TestFilter:
         out = tmpl.render()
         assert out == "1|2|3"
 
+    def test_join_default_autoescape(self):
         env2 = Environment(autoescape=True)
         tmpl = env2.from_string('{{ ["<foo>", "<span>foo</span>"|safe]|join }}')
         assert tmpl.render() == "&lt;foo&gt;<span>foo</span>"
+
+    def test_join_custom_autoescape(self, return_autoescape):
+        env2 = Environment(autoescape=return_autoescape)
+        tmpl = env2.from_string('{{ ["$foo$", "$span$foo$/span$"|safe]|join }}')
+        assert tmpl.render() == "€foo€$span$foo$span$"
 
     def test_join_attribute(self, env):
         User = namedtuple("User", "username")
