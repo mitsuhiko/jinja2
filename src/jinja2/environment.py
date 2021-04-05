@@ -216,9 +216,18 @@ class Environment:
             escape function.
             If you write your own Subclass with a custom escape function
             make sure the escape function returns a instance of
-            your own subclass!
+            your own subclass and only escapes string is required.
+            Take this minimal working example as basis::
 
-            Parameter defaults to Markup class of markupsafe
+                class CustomMarkup(Markup):
+                    @classmethod
+                    def escape(cls, s):
+                        if hasattr(s, '__html__'):
+                            return s
+                        return cls(s.replace("foo", "bar"))
+
+
+            Parameter defaults to Markup class of package markupsafe
 
             .. versionadded:: 3.0
 
