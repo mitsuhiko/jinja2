@@ -64,7 +64,14 @@ def has_safe_repr(value):
     if value is None or value is NotImplemented or value is Ellipsis:
         return True
 
-    if type(value) in {bool, int, float, complex, range, str, Markup}:
+    if isinstance(value, Markup):
+        # If a custom Markup Class is used value is a subclass of
+        # Markup
+        # TODO: Write a test for this change -> But I don't know
+        #       where to start.
+        return True
+
+    if type(value) in {bool, int, float, complex, range, str}:
         return True
 
     if type(value) in {tuple, list, set, frozenset}:
