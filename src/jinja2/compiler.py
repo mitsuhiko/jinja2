@@ -1,6 +1,7 @@
 """Compiles nodes from the parser into Python code."""
 import typing as t
 from collections import namedtuple
+from contextlib import contextmanager
 from functools import update_wrapper
 from io import StringIO
 from itertools import chain
@@ -143,6 +144,11 @@ class Frame:
         self.loop_frame = False
         self.block_frame = False
 
+        # track whether the frame is being used in an if-statement or conditional
+        # expression as it determines which errors should be raised during runtime
+        # or compile time.
+        self.soft_frame = False
+
     def copy(self):
         """Create a copy of the current one."""
         rv = object.__new__(self.__class__)
@@ -161,10 +167,12 @@ class Frame:
         standalone thing as it shares the resources with the frame it
         was created of, but it's not a rootlevel frame any longer.
 
-        This is only used to implement if-statements.
+        This is only used to implement if-statements and conditional
+        expressions.
         """
         rv = self.copy()
         rv.rootlevel = False
+        rv.soft_frame = True
         return rv
 
     __copy__ = copy
@@ -440,16 +448,45 @@ class CodeGenerator(NodeVisitor):
             self.visit(node.dyn_kwargs, frame)
 
     def pull_dependencies(self, nodes):
-        """Pull all the dependencies."""
+        """Find all filter and test names used in the template and
+        assign them to variables in the compiled namespace. Checking
+        that the names are registered with the environment is done when
+        compiling the Filter and Test nodes. If the node is in an If or
+        CondExpr node, the check is done at runtime instead.
+
+        .. versionchanged:: 3.0
+            Filters and tests in If and CondExpr nodes are checked at
+            runtime instead of compile time.
+        """
         visitor = DependencyFinderVisitor()
+
         for node in nodes:
             visitor.visit(node)
+
         for dependency in "filters", "tests":
             mapping = getattr(self, dependency)
+
             for name in getattr(visitor, dependency):
                 if name not in mapping:
                     mapping[name] = self.temporary_identifier()
+
+                # add check during runtime that dependencies used inside of executed
+                # blocks are defined, as this step may be skipped during compile time
+                self.writeline("try:")
+                self.indent()
                 self.writeline(f"{mapping[name]} = environment.{dependency}[{name!r}]")
+                self.outdent()
+                self.writeline("except KeyError:")
+                self.indent()
+                self.writeline("@internalcode")
+                self.writeline(f"def {mapping[name]}(*unused):")
+                self.indent()
+                self.writeline(
+                    f'raise TemplateRuntimeError("No {dependency[:-1]}'
+                    f' named {name!r} found.")'
+                )
+                self.outdent()
+                self.outdent()
 
     def enter_frame(self, frame):
         undefs = []
@@ -1651,50 +1688,74 @@ class CodeGenerator(NodeVisitor):
             self.write(":")
             self.visit(node.step, frame)
 
-    @optimizeconst
-    def visit_Filter(self, node, frame):
+    @contextmanager
+    def _filter_test_common(self, node, frame, is_filter):
+        if is_filter:
+            compiler_map = self.filters
+            env_map = self.environment.filters
+            type_name = mark_name = "filter"
+        else:
+            compiler_map = self.tests
+            env_map = self.environment.tests
+            type_name = "test"
+            # Filters use "contextfilter", tests and calls use "contextfunction".
+            mark_name = "function"
+
         if self.environment.is_async:
             self.write("await auto_await(")
-        self.write(self.filters[node.name] + "(")
-        func = self.environment.filters.get(node.name)
-        if func is None:
-            self.fail(f"no filter named {node.name!r}", node.lineno)
-        if getattr(func, "contextfilter", False) is True:
+
+        self.write(compiler_map[node.name] + "(")
+        func = env_map.get(node.name)
+
+        # When inside an If or CondExpr frame, allow the filter to be
+        # undefined at compile time and only raise an error if it's
+        # actually called at runtime. See pull_dependencies.
+        if func is None and not frame.soft_frame:
+            self.fail(f"No {type_name} named {node.name!r}.", node.lineno)
+
+        if getattr(func, f"context{mark_name}", False) is True:
             self.write("context, ")
-        elif getattr(func, "evalcontextfilter", False) is True:
+        elif getattr(func, f"evalcontext{mark_name}", False) is True:
             self.write("context.eval_ctx, ")
-        elif getattr(func, "environmentfilter", False) is True:
+        elif getattr(func, f"environment{mark_name}", False) is True:
             self.write("environment, ")
 
-        # if the filter node is None we are inside a filter block
-        # and want to write to the current buffer
-        if node.node is not None:
-            self.visit(node.node, frame)
-        elif frame.eval_ctx.volatile:
-            self.write(
-                f"(Markup(concat({frame.buffer}))"
-                f" if context.eval_ctx.autoescape else concat({frame.buffer}))"
-            )
-        elif frame.eval_ctx.autoescape:
-            self.write(f"Markup(concat({frame.buffer}))")
-        else:
-            self.write(f"concat({frame.buffer})")
+        # Back to the visitor function to handle visiting the target of
+        # the filter or test.
+        yield
+
         self.signature(node, frame)
         self.write(")")
+
         if self.environment.is_async:
             self.write(")")
 
     @optimizeconst
+    def visit_Filter(self, node, frame):
+        with self._filter_test_common(node, frame, True):
+            # if the filter node is None we are inside a filter block
+            # and want to write to the current buffer
+            if node.node is not None:
+                self.visit(node.node, frame)
+            elif frame.eval_ctx.volatile:
+                self.write(
+                    f"(Markup(concat({frame.buffer}))"
+                    f" if context.eval_ctx.autoescape else concat({frame.buffer}))"
+                )
+            elif frame.eval_ctx.autoescape:
+                self.write(f"Markup(concat({frame.buffer}))")
+            else:
+                self.write(f"concat({frame.buffer})")
+
+    @optimizeconst
     def visit_Test(self, node, frame):
-        self.write(self.tests[node.name] + "(")
-        if node.name not in self.environment.tests:
-            self.fail(f"no test named {node.name!r}", node.lineno)
-        self.visit(node.node, frame)
-        self.signature(node, frame)
-        self.write(")")
+        with self._filter_test_common(node, frame, False):
+            self.visit(node.node, frame)
 
     @optimizeconst
     def visit_CondExpr(self, node, frame):
+        frame = frame.soft()
+
         def write_expr2():
             if node.expr2 is not None:
                 return self.visit(node.expr2, frame)

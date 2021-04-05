@@ -20,6 +20,9 @@ from .utils import missing
 from .utils import Namespace  # noqa: F401
 from .utils import object_type_repr
 
+if t.TYPE_CHECKING:
+    from .environment import Environment
+
 # these variables are exported to the template runtime
 exported = [
     "LoopContext",
@@ -36,6 +39,7 @@ exported = [
     "TemplateNotFound",
     "Namespace",
     "Undefined",
+    "internalcode",
 ]
 
 
@@ -185,7 +189,7 @@ class Context(metaclass=ContextMeta):
     def __init__(self, environment, parent, name, blocks, globals=None):
         self.parent = parent
         self.vars = {}
-        self.environment = environment
+        self.environment: "Environment" = environment
         self.eval_ctx = EvalContext(self.environment, name)
         self.exported_vars = set()
         self.name = name
@@ -751,7 +755,7 @@ class Undefined:
     __floordiv__ = __rfloordiv__ = _fail_with_undefined_error
     __mod__ = __rmod__ = _fail_with_undefined_error
     __pos__ = __neg__ = _fail_with_undefined_error
-    __call__ = __getitem__ = _fail_with_undefined_error
+    __call__ = __getitem__ = __contains__ = _fail_with_undefined_error
     __lt__ = __le__ = __gt__ = __ge__ = _fail_with_undefined_error
     __int__ = __float__ = __complex__ = _fail_with_undefined_error
     __pow__ = __rpow__ = _fail_with_undefined_error
@@ -773,6 +777,10 @@ class Undefined:
 
     def __iter__(self):
         yield from ()
+
+    async def __aiter__(self):
+        for _ in ():
+            yield
 
     def __bool__(self):
         return False

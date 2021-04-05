@@ -40,6 +40,22 @@ Unreleased
 -   Update the template globals when calling
     ``Environment.get_template(globals=...)`` even if the template was
     already loaded. :issue:`295`
+-   Do not raise an error for undefined filters in unexecuted
+    if-statements and conditional expressions. :issue:`842`
+-   Add ``is filter`` and ``is test`` tests to test if a name is a
+    registered filter or test. This allows checking if a filter is
+    available in a template before using it. Test functions can be
+    decorated with ``@environmentfunction``, ``@evalcontextfunction``,
+    or ``@contextfunction``. :issue:`842`, :pr:`1248`
+-   Support ``pgettext`` and ``npgettext`` (message contexts) in i18n
+    extension. :issue:`441`
+-   The ``|indent`` filter's ``width`` argument can be a string to
+    indent by. :pr:`1167`
+-   The parser understands hex, octal, and binary integer literals.
+    :issue:`1170`
+-   ``Undefined.__contains__`` (``in``) raises an ``UndefinedError``
+    instead of a ``TypeError``. :issue:`1198`
+-   ``Undefined`` is iterable in an async environment. :issue:`1294`
 
 
 Version 2.11.3
