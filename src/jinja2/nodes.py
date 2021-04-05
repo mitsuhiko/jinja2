@@ -92,7 +92,7 @@ class EvalContext:
                 with the correct class
                 """
                 if hasattr(s, "__html__"):
-                    return s, Markup
+                    return s
                 return self.mark_safe(self._escape_func(s))
 
             return custom_escape_wrapper
