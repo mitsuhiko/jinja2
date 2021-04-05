@@ -5,7 +5,7 @@ from collections import abc
 from itertools import chain
 from types import MethodType
 
-from markupsafe import escape as html_escape # noqa: F401
+from markupsafe import escape as html_escape  # noqa: F401
 from markupsafe import Markup
 from markupsafe import soft_str
 

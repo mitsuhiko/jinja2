@@ -228,7 +228,7 @@ class TestFilter:
 
     def test_join_custom_autoescape(self, return_custom_autoescape):
         env2 = Environment(autoescape=return_custom_autoescape)
-        tmpl = env2.from_string('{{ ["$foo$", "$span$foo$/span$"|safe]|join }}')
+        tmpl = env2.from_string('{{ ["$foo$", "$span$foo$span$"|safe]|join }}')
         assert tmpl.render() == "€foo€$span$foo$span$"
 
     def test_join_attribute(self, env):

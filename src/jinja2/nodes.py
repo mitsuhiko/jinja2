@@ -80,22 +80,25 @@ class EvalContext:
                 """
                 Make sure the custom escape function does not escape
                 already escaped strings
+                Also make sure the escaped string is marked as escaped
+                with the correct class
                 """
                 if hasattr(s, "__html__"):
                     return s
-                return self.autoescape(s)
+                return self.mark_safe(self.autoescape(s))
 
             return custom_escape_wrapper
         return self.environment.default_markup_class.escape
 
-    def mark_safe(outer_self, input: str) -> Markup:
+    def mark_safe(outer_self, input: str) -> Markup:  # noqa: B902
         class MarkupWrapper(Markup):
             """
-            Make sure we overwrite all the correct functions
+            Make sure that the custom escape function is used
             """
 
+            @classmethod
             def escape(cls, s: Any):
-                return outer_self.get_escape_function()(s)
+                return outer_self.get_escape_function()(s)  # noqa: B902
 
         return MarkupWrapper(input)
 

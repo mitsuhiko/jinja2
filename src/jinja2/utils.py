@@ -593,14 +593,10 @@ def do_latex_escape(value: str) -> str:
     )
 
 
-def _get_default_special_extensions():
-    return {"tex": do_latex_escape}
-
-
 def select_autoescape(
     enabled_extensions=("html", "htm", "xml"),
     disabled_extensions=(),
-    special_extensions=_get_default_special_extensions(),
+    special_extensions=None,
     default_for_string=True,
     default=False,
 ):
@@ -647,6 +643,8 @@ def select_autoescape(
     enabled_patterns = tuple(extension_str(x) for x in enabled_extensions)
     disabled_patterns = tuple(extension_str(x) for x in disabled_extensions)
 
+    if special_extensions is None:
+        special_extensions = {"tex": do_latex_escape}
     special_extensions = {
         extension_str(key): func for key, func in special_extensions.items()
     }
