@@ -139,21 +139,22 @@ def test_env_async_custom_autoescape(return_custom_autoescape):
                     "{% macro test(foo) %}[dollar$"
                     "{{ foo }}"
                     "|{{ bar }}"
-                    "|{{ the_context|default('default$') }}]{% endmacro %}"
+                    "|{{ the_context|default('>default$') }}]{% endmacro %}"
                 ),
                 module_join=(
                     "{% macro test(foo) %}[dollar$"
                     '{{ foo|join(",") }}'
-                    '|{{ bar_list|join("," }}'
-                    '|{{ the_context|join("," }}]{% endmacro %}'
+                    '|{{ bar_list|join(",") }}'
+                    '|{{ the_context|default([">default$"])|join(",") }}]'
+                    "{% endmacro %}"
                 ),
             )
         ),
         enable_async=True,
         autoescape=return_custom_autoescape,
     )
-    env.globals["bar"] = "23€"
-    env.globals["bar_list"] = ("23€", "24$")
+    env.globals["bar"] = ">23$"
+    env.globals["bar_list"] = (">23€", ">24$")
     return env
 
 
@@ -182,25 +183,56 @@ class TestAsyncImports:
 
     def test_context_imports_with_custom_escape(self, test_env_async_custom_autoescape):
         test_env_async = test_env_async_custom_autoescape
+
         t = test_env_async.from_string('{% import "module" as m %}{{ m.test(arg) }}')
         assert (
-            t.render(arg="escaped_dollar$", the_context="context$")
-            == "[dollar$escaped_dollar€|23€|default€]"
+            t.render(arg=">escaped_dollar$", the_context=">context$")
+            == "[dollar$>escaped_dollar€|>23€|>default€]"
         )
 
         t = test_env_async.from_string(
             '{% import "module" as m without context %}{{ m.test(arg) }}'
         )
         assert (
-            t.render(arg="escaped_dollar$", the_context="context$")
-            == "[dollar$escaped_dollar€|23€|default€]"
+            t.render(arg=">escaped_dollar$", the_context=">context$")
+            == "[dollar$>escaped_dollar€|>23€|>default€]"
         )
+
         t = test_env_async.from_string(
             '{% from "module" import test with context %}{{ test(arg) }}'
         )
         assert (
-            t.render(arg="escaped_dollar$", the_context="context$")
-            == "[dollar$escaped_dollar€|23€|context€]"
+            t.render(arg=">escaped_dollar$", the_context=">context$")
+            == "[dollar$>escaped_dollar€|>23€|>context€]"
+        )
+
+    def test_context_imports_with_custom_escape_and_joins(
+        self, test_env_async_custom_autoescape
+    ):
+        test_env_async = test_env_async_custom_autoescape
+
+        t = test_env_async.from_string(
+            '{% import "module_join" as m %}{{ m.test(arg) }}'
+        )
+        assert (
+            t.render(arg=[">1$", ">2$", ">3$"], the_context=[">42$", ">43$"])
+            == "[dollar$>1€,>2€,>3€|>23€,>24€|>default€]"
+        )
+
+        t = test_env_async.from_string(
+            '{% import "module_join" as m without context %}{{ m.test(arg) }}'
+        )
+        assert (
+            t.render(arg=[">1$", ">2$", ">3$"], the_context=[">42$", ">43$"])
+            == "[dollar$>1€,>2€,>3€|>23€,>24€|>default€]"
+        )
+
+        t = test_env_async.from_string(
+            '{% from "module_join" import test with context %}{{ test(arg) }}'
+        )
+        assert (
+            t.render(arg=[">1$", ">2$", ">3$"], the_context=[">42$", ">43$"])
+            == "[dollar$>1€,>2€,>3€|>23€,>24€|>42€,>43€]"
         )
 
     def test_trailing_comma(self, test_env_async):
