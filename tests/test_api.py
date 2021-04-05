@@ -70,12 +70,12 @@ class TestExtendedAPI:
         t = e.from_string("{{ value }}")
         assert t.render(value="<script>") == "True&lt;script&gt;"
 
-    def test_eval_custom_autoescape(self, return_autoescape):
+    def test_eval_custom_autoescape(self, return_custom_autoescape):
         @evalcontextfunction
         def finalize(eval_ctx, value):
             return str(callable(eval_ctx.autoescape)) + value
 
-        e = Environment(finalize=finalize, autoescape=return_autoescape)
+        e = Environment(finalize=finalize, autoescape=return_custom_autoescape)
         t = e.from_string("{{ value }}")
         assert t.render(value="$script$") == "True€script€"
 

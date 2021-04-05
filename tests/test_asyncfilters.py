@@ -109,8 +109,8 @@ def test_join_string_list(string_items):
 
 
 @mark_dualiter("string_items", lambda: ["$foo$", Markup("$span$foo$/span$")])
-def test_join_string_list(string_items, return_autoescape):
-    env2 = Environment(autoescape=return_autoescape, enable_async=True)
+def test_join_string_list(string_items, return_custom_autoescape):
+    env2 = Environment(autoescape=return_custom_autoescape, enable_async=True)
     tmpl = env2.from_string('{{ ["$foo$", "$span$foo$/span$"|safe]|join }}')
     assert tmpl.render(items=string_items) == "€foo€$span$foo$/span$"
 

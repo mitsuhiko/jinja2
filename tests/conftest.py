@@ -57,7 +57,7 @@ def prefix_loader(filesystem_loader, dict_loader):
 
 
 @pytest.fixture
-def return_autoescape():
+def return_custom_autoescape():
     """return a simple example for a custom escape function"""
 
     def do_return_autoescape(suffix):
