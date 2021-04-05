@@ -214,6 +214,10 @@ class Environment:
             Markup class or an subclass of it overwriting the escape
             function. The classes escape function is used as default
             escape function.
+            If you write your own Subclass with a custom escape function
+            make sure the escape function returns a instance of
+            your own subclass!
+
             Parameter defaults to Markup class of markupsafe
 
             .. versionadded:: 3.0
