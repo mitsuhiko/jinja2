@@ -6,7 +6,6 @@ import inspect
 import operator
 from collections import deque
 from typing import Any
-from typing import Callable
 from typing import Tuple as TupleType
 
 from markupsafe import Markup
@@ -82,7 +81,7 @@ class EvalContext:
             self._escape_func = self.environment.default_markup_class.escape
             self._wrapping_required = False
 
-    def get_escape_function(self) -> Callable[[Any], Markup]:
+    def get_escape_function(self):
         if self._wrapping_required:
 
             def custom_escape_wrapper(s):
@@ -93,7 +92,7 @@ class EvalContext:
                 with the correct class
                 """
                 if hasattr(s, "__html__"):
-                    return s
+                    return s, Markup
                 return self.mark_safe(self._escape_func(s))
 
             return custom_escape_wrapper
@@ -106,7 +105,7 @@ class EvalContext:
             """
 
             @classmethod
-            def escape(cls, s: Any):
+            def escape(cls, s):
                 return outer_self.get_escape_function()(s)  # noqa: B902
 
         return MarkupWrapper(input)

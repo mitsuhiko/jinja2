@@ -13,7 +13,6 @@ from markupsafe import Markup
 from markupsafe import soft_str
 
 from .exceptions import FilterArgumentError
-from .nodes import EvalContext
 from .runtime import Undefined
 from .utils import htmlsafe_json_dumps
 from .utils import pformat
@@ -64,8 +63,8 @@ def environmentfilter(f: "F") -> "F":
 
 
 @evalcontextfilter
-def escape(eval_ctx: EvalContext, s: str) -> Markup:
-    return eval_ctx.get_escape_function()(s)
+def escape(eval_ctx: "EvalContext", s: str) -> Markup:
+    return eval_ctx.get_escape_function()(s)  # type: ignore
 
 
 def ignore_case(value: "V") -> "V":
