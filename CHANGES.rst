@@ -7,6 +7,7 @@ Unreleased
 
 -   Drop support for Python 2.7 and 3.5.
 -   Bump MarkupSafe dependency to >=1.1.
+-   Allow custom auto escape functions :issue:`1377`
 -   Bump Babel optional dependency to >=2.1.
 -   Remove code that was marked deprecated.
 -   Use :pep:`451` API to load templates with

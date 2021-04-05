@@ -630,7 +630,15 @@ def select_autoescape(
     If nothing matches then the initial value of autoescaping is set to the
     value of `default`.
 
+    The `special_extensions` is a dictionary whose keys are the extensions
+    to be considered and the values are the escape function to be used
+    to escape this kind of files. Defaults to the usage of
+    :func:`~jinja.utils.do_latex_escape` for '.tex' and '.latex'  files.
+
     For security reasons this function operates case insensitive.
+
+    .. versionchanged:: 3.0
+    With version 3.0 the parameter special_extensions was added
 
     .. versionadded:: 2.9
     """
@@ -644,7 +652,9 @@ def select_autoescape(
     disabled_patterns = tuple(extension_str(x) for x in disabled_extensions)
 
     if special_extensions is None:
-        special_extensions = {"tex": do_latex_escape}
+        special_extensions = {"tex": do_latex_escape, "latex": do_latex_escape}
+    if special_extensions is False:
+        special_extensions = {}
     special_extensions = {
         extension_str(key): func for key, func in special_extensions.items()
     }

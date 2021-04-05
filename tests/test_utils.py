@@ -135,6 +135,14 @@ class TestHelpers:
         assert func("FOO.HTML")
         assert not func("FOO.TXT")
 
+    def test_autoescape_select_defaults(self):
+        func = select_autoescape()
+        assert callable(func("foo.tex"))
+        assert callable(func("foo.latex"))
+        func = select_autoescape(special_extensions=False, default="DEFAULT")
+        assert func("foo.tex") == "DEFAULT"
+        assert func("foo.latex") == "DEFAULT"
+
     def test_autoescape_select_special(self):
         def foobar(s):
             return s.replace("foo", "bar")

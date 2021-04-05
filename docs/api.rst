@@ -232,6 +232,10 @@ future.  It's recommended to configure a sensible default for
 autoescaping.  This makes it possible to enable and disable autoescaping
 on a per-template basis (HTML versus text for instance).
 
+.. versionchanged:: 3.0
+Jinja now also allows the usage of different escape functions selected
+by template suffix.
+
 .. autofunction:: jinja2.select_autoescape
 
 Here a recommended setup that enables autoescaping for templates ending
@@ -250,6 +254,8 @@ works roughly like this::
         if template_name is None:
             return False
         if template_name.endswith(('.html', '.htm', '.xml'))
+            return True
+        return False
 
 When implementing a guessing autoescape function, make sure you also
 accept `None` as valid template name.  This will be passed when generating
@@ -258,6 +264,32 @@ defaults in the future might change.
 
 Inside the templates the behaviour can be temporarily changed by using
 the `autoescape` block (see :ref:`autoescape-overrides`).
+
+Note the `select_autoescape` function with default parameters will return
+a function that will escape LaTeX given there is template ending with
+'.tex' or '.latex'.
+
+To write your own custom escape function simply return it for the
+wanted template extension. For instance if you are fan of peace in
+the world::
+
+    def escape_to_peace(s):
+        """
+        Your custom escape function. You only have to take care
+        that your escaping is done properly, everything else like
+        preventing multiple escapes and marking the string as safe
+        is done by Jinja itself.
+        """
+        s.replace("war", "peace")
+
+    env = Environment(
+        autoescape=select_autoescape(special_extensions={".world": escape_to_peace}),
+        loader=PackageLoader("mypackage"),
+    )
+
+
+Note that for `.world` files the `{{ var|e }}` and `{{ var | escape }}`
+filters are replaced with the custom escape function.
 
 
 .. _identifier-naming:

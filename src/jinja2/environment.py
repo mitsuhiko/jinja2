@@ -229,8 +229,11 @@ class Environment:
             be a callable that is passed the template name and has to
             return ``True`` or ``False`` depending on autoescape should be
             enabled by default.
-
-
+            As of Jinja 3.0 the autoescape can be even smarter.
+            If the given function does not return a boolean but a
+            function again, this function is considered to be the
+            escape function that shall be used. So you can used the
+            same enviroment to autoescape LaTeX and HTML files.
 
             .. versionchanged:: 3.0
                 if `autoescape` function returns not True or False but a Callable
