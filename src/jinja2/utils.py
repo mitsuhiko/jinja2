@@ -557,45 +557,6 @@ class LRUCache:
     __copy__ = copy
 
 
-def do_latex_escape(value: str) -> str:
-    """
-    Replace all LaTeX characters that could cause the latex compiler to fail
-    and at the same time try to display the character as intended from the user.
-
-    see also https://tex.stackexchange.com/questions/34580/escape-character-in-latex
-    """
-    # replace Backslashes with this temporary string to prevent double
-    # replacements
-    BACKSLASH_REPLACEMENT = "<:-!~#BACKSLASH#~!-:>"
-
-    return (
-        # Replace Backslashes so we dont' double replace backslashes
-        value.replace("\\", BACKSLASH_REPLACEMENT)
-        # If there was a space before the character we assume the user wants
-        # it also in the displayed LaTeX text
-        .replace(BACKSLASH_REPLACEMENT + " ", r"\textbackslash\space ")
-        # Otherwise we assume it doesn't matter. Note the space at the end is
-        # required that an additional text is not considered as part of the latex
-        # command
-        .replace(BACKSLASH_REPLACEMENT, r"\textbackslash ")
-        # Do the same for ~ and ^
-        .replace("~ ", r"\textasciitilde\space ")
-        .replace("~", r"\textasciitilde ")
-        .replace("^ ", r"\textasciicircum\space ")
-        .replace("^", r"\textasciicircum ")
-        .replace("&", r"\&")
-        .replace("$", r"\$")
-        .replace("%", r"\%")
-        .replace("#", r"\#")
-        .replace("_", r"\_")
-        .replace("{", r"\{")
-        .replace("}", r"\}")
-        # Replace vertical tab as this seems to be the only character from
-        # string.printable that can't be consumed from LaTeX
-        .replace(chr(11), "")
-    )
-
-
 def select_autoescape(
     enabled_extensions=("html", "htm", "xml"),
     disabled_extensions=(),
@@ -635,8 +596,7 @@ def select_autoescape(
 
     The `special_extensions` is a dictionary whose keys are the extensions
     to be considered and the values are the escape function to be used
-    to escape this kind of files. Defaults to the usage of
-    :func:`~jinja.utils.do_latex_escape` for '.tex' and '.latex'  files.
+    to escape this kind of files.
 
     For security reasons this function operates case insensitive.
 
@@ -646,7 +606,6 @@ def select_autoescape(
 
     .. versionadded:: 2.9
     """
-    # TODO Update Documentation
 
     def extension_str(x):
         """return a lower case extension always starting with point"""
@@ -656,7 +615,7 @@ def select_autoescape(
     disabled_patterns = tuple(extension_str(x) for x in disabled_extensions)
 
     if special_extensions is None:
-        special_extensions = {"tex": do_latex_escape, "latex": do_latex_escape}
+        special_extensions = {}
     if special_extensions is False:
         special_extensions = {}
     special_extensions = {

@@ -266,11 +266,9 @@ defaults in the future might change.
 Inside the templates the behaviour can be temporarily changed by using
 the `autoescape` block (see :ref:`autoescape-overrides`).
 
-Note the `select_autoescape` function with default parameters will return
-a function that will escape LaTeX given there is template ending with
-'.tex' or '.latex'. It will use the
-:func:`~jinja.utils.do_latex_escape` function to perform the escape.
-
+Note that :func:`~jinja2.select_autoescape` offers also a parameter
+`special_extensions` that allows you to define a custom escape function,
+i.e. if you handling LaTeX files.
 
 To write your own custom escape function simply return it for the
 wanted template extension. For instance if you are fan of peace in
