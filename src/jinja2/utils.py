@@ -641,6 +641,7 @@ def select_autoescape(
     For security reasons this function operates case insensitive.
 
     .. versionchanged:: 3.0
+
     With version 3.0 the parameter special_extensions was added
 
     .. versionadded:: 2.9

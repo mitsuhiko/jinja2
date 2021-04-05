@@ -63,6 +63,10 @@ def environmentfilter(f: "F") -> "F":
 
 @evalcontextfilter
 def escape(eval_ctx: "EvalContext", s: str) -> Markup:
+    """
+    Escape a string with the escape function active in the current
+    eval context
+    """
     return eval_ctx.get_escape_function()(s)  # type: ignore
 
 

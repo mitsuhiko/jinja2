@@ -233,6 +233,7 @@ autoescaping.  This makes it possible to enable and disable autoescaping
 on a per-template basis (HTML versus text for instance).
 
 .. versionchanged:: 3.0
+
 Jinja now also allows the usage of different escape functions selected
 by template suffix.
 
