@@ -771,8 +771,13 @@ def do_urlize(
     return rv
 
 
+@evalcontextfilter
 def do_indent(
-    s: str, width: t.Union[int, str] = 4, first: bool = False, blank: bool = False
+    eval_ctx: "EvalContext",
+    s: str,
+    width: t.Union[int, str] = 4,
+    first: bool = False,
+    blank: bool = False,
 ) -> str:
     """Return a copy of the string with each line indented by 4 spaces. The
     first line and blank lines are not indented by default.
@@ -796,9 +801,11 @@ def do_indent(
 
     newline = "\n"
 
-    if isinstance(s, Markup):
-        indention = Markup(indention)
-        newline = Markup(newline)
+    if hasattr(s, "__html__"):
+        indention = eval_ctx.mark_safe(indention)
+        newline = eval_ctx.mark_safe(newline)
+        # Make sure the correct MarkupClass is used
+        s = eval_ctx.mark_safe(s.__html__())
 
     s += newline  # this quirk is necessary for splitlines method
 
@@ -1231,17 +1238,12 @@ def do_list(value: "t.Iterable[V]") -> "t.List[V]":
     return list(value)
 
 
-# @evalcontextfilter
-# eval_ctx: "EvalContext"
-def do_mark_safe(value: str) -> Markup:
+@evalcontextfilter
+def do_mark_safe(eval_ctx: "EvalContext", value: str) -> Markup:
     """Mark the value as safe which means that in an environment with automatic
     escaping enabled this variable will not be escaped.
     """
-    # TODO This should be also an evalcontext filter but some
-    #      test are failing if it is
-    #      We need to figure out why this is happening?
-    return Markup(value)
-    # return eval_ctx.mark_safe(value)
+    return eval_ctx.mark_safe(value)
 
 
 def do_mark_unsafe(value: str) -> str:

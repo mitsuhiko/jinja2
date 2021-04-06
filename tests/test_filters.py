@@ -179,6 +179,17 @@ class TestFilter:
         t = env.from_string('{{ "jinja"|indent(blank=true) }}')
         assert t.render() == "jinja"
 
+    def test_indent_custom_escape(self, env_custom_autoescape):
+        env = env_custom_autoescape
+        text = "\n".join(["", "foo$bar", '"baz"', ""])
+        ident_default = "{{ foo|indent(2, false, false) }}"
+        t = env.from_string(ident_default)
+        assert t.render(foo=text) == '\n  foo€bar\n  "baz"\n'
+        text_secure = Markup(text)
+        assert t.render(foo=text_secure) == '\n  foo$bar\n  "baz"\n'
+        text_secure = env.default_markup_class(text)
+        assert t.render(foo=text_secure) == '\n  foo$bar\n  "baz"\n'
+
     def test_indent_markup_input(self, env):
         """
         Tests cases where the filter input is a Markup type

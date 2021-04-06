@@ -65,10 +65,8 @@ def has_safe_repr(value):
         return True
 
     if isinstance(value, Markup):
-        # If a custom Markup Class is used value is a subclass of
-        # Markup
-        # TODO: Write a test for this change -> But I don't know
-        #       where to start.
+        # If a custom Markup Class is used,
+        # the value is a subclass of Markup
         return True
 
     if type(value) in {bool, int, float, complex, range, str}:
@@ -780,6 +778,9 @@ class CodeGenerator(NodeVisitor):
         # make sure in the root render function the coorect Markup
         # class ise used
         self.writeline("Markup = context.eval_ctx.mark_safe")
+        # Custom Wrappers have a differnt naming
+        # so we also need to provide this
+        self.writeline("MarkupWrapper = context.eval_ctx.mark_safe")
         self.write_commons()
         # process the root
         frame = Frame(eval_ctx)

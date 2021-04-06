@@ -147,7 +147,6 @@ def _make_new_gettext(func):
         # Always treat as a format string, even if there are no
         # variables. This makes translation strings more consistent
         # and predictable. This requires escaping
-        # TODO: Currently not working with custom escapes, fix in future
         return rv % variables
 
     return gettext
