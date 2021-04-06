@@ -91,6 +91,31 @@ class TestSandbox:
         )
         assert escape(t.module.say_hello("<blink>foo</blink>")) == escaped_out
 
+    def test_template_data_custom_escape(self, env_custom_autoescape):
+        env = env_custom_autoescape
+        t = env.from_string(
+            "{% macro say_hello(name) %}"
+            "$<p>Hello {{ name }}!</p>${% endmacro %}"
+            '{{ say_hello("<$$foo$$>") }}'
+        )
+        my_escape = env.default_markup_class.escape
+        escaped_out = "$<p>Hello <€€foo€€>!</p>$"
+        assert t.render() == escaped_out
+        # Make sure that the same Markup class is used everywhere
+        # somehow even different instances of the escape class are use
+        # therefore we compare only the names
+        assert (
+            t.module.__html__().__class__.get_unwrapped_escape().__name__
+            == env.default_markup_class.get_unwrapped_escape().__name__
+        )
+        assert str(t.module) == escaped_out
+        assert my_escape(t.module) == escaped_out
+        assert t.module.say_hello("<$$foo$$>") == escaped_out
+        assert (
+            my_escape(t.module.say_hello(EvalContext(env), "<$$foo$$>")) == escaped_out
+        )
+        assert my_escape(t.module.say_hello("<$$foo$$>")) == escaped_out
+
     def test_attr_filter(self, env):
         env = SandboxedEnvironment()
         tmpl = env.from_string('{{ cls|attr("__subclasses__")() }}')

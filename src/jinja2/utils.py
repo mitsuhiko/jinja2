@@ -4,6 +4,7 @@ import re
 import typing as t
 from collections import abc
 from collections import deque
+from functools import lru_cache
 from random import choice
 from random import randrange
 from threading import Lock
@@ -686,6 +687,8 @@ def htmlsafe_json_dumps(
     )
 
 
+# Note
+@lru_cache(100)
 def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Markup:
     """
     Use a simple escape function to generate a wrapped Markup class
@@ -701,15 +704,26 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Markup:
         """
 
         @classmethod
+        def get_unwrapped_escape(cls):
+            # Needed for test
+            return custom_escape
+
+        @classmethod
         def escape(cls, s):
             """
             Make sure the custom escape function does not escape
             already escaped strings
             Also make sure the escaped string is marked as escaped
             with the correct class
+
+            If the object has an ``__html__`` method, it is called
+            and the return value is assumed to already be safe for HTML
+            / resp what ever is escaped currently.
+            The HTML Attribue shall be understood simply as
+                "it is a safe string"
             """
             if hasattr(s, "__html__"):
-                return s
+                return cls(s.__html__())
             return cls(custom_escape(s))  # noqa: B902
 
     return MarkupWrapper

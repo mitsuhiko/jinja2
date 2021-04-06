@@ -1317,14 +1317,13 @@ class TemplateModule:
                     "using."
                 )
             body_stream = list(template.root_render_func(context))
+        self._context = context
         self._body_stream = body_stream
         self.__dict__.update(context.get_exported())
         self.__name__ = template.name
 
     def __html__(self):
-        # TODO Find and write some test with autoencoding and
-        #      imported templates
-        return Markup(concat(self._body_stream))
+        return self._context.eval_ctx.mark_safe(concat(self._body_stream))
 
     def __str__(self):
         return concat(self._body_stream)
