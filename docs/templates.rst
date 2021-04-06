@@ -54,7 +54,11 @@ configured as follows:
 * ``{% ... %}`` for :ref:`Statements <list-of-control-structures>`
 * ``{{ ... }}`` for :ref:`Expressions` to print to the template output
 * ``{# ... #}`` for :ref:`Comments` not included in the template output
-* ``#  ... ##`` for :ref:`Line Statements <line-statements>`
+
+:ref:`Line Statements and Comments <line-statements>` are also possible,
+though they don't have default prefix characters. To use them, set
+``line_statement_prefix`` and ``line_comment_prefix`` when creating the
+:class:`~jinja2.Environment`.
 
 
 Template File Extension
@@ -688,9 +692,17 @@ iterate over containers like `dict`::
     {% endfor %}
     </dl>
 
-Note, however, that **Python dicts are not ordered**; so you might want to
-either pass a sorted ``list`` of ``tuple`` s -- or a
-``collections.OrderedDict`` -- to the template, or use the `dictsort` filter.
+Python dicts may not be in the order you want to display them in. If
+order matters, use the ``|dictsort`` filter.
+
+.. code-block:: jinja
+
+    <dl>
+    {% for key, value in my_dict | dictsort %}
+        <dt>{{ key|e }}</dt>
+        <dd>{{ value|e }}</dd>
+    {% endfor %}
+    </dl>
 
 Inside of a for-loop block, you can access some special variables:
 
@@ -1389,10 +1401,10 @@ two categories:
 ``is``
     Performs a :ref:`test <tests>`.
 
-``|``
+``|`` (pipe, vertical bar)
     Applies a :ref:`filter <filters>`.
 
-``~``
+``~`` (tilde)
     Converts all operands into strings and concatenates them.
 
     ``{{ "Hello " ~ name ~ "!" }}`` would return (assuming `name` is set

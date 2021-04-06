@@ -323,9 +323,8 @@ def do_dictsort(
     by: 'te.Literal["key", "value"]' = "key",
     reverse: bool = False,
 ) -> "t.List[t.Tuple[K, V]]":
-    """Sort a dict and yield (key, value) pairs. Because python dicts are
-    unsorted you may want to use this function to order them by either
-    key or value:
+    """Sort a dict and yield (key, value) pairs. Python dicts may not
+    be in the order you want to display them in, so sort them first.
 
     .. sourcecode:: jinja
 
@@ -1133,7 +1132,10 @@ class _GroupTuple(t.NamedTuple):
 
 @environmentfilter
 def do_groupby(
-    environment: "Environment", value: "t.Iterable[V]", attribute: t.Union[str, int]
+    environment: "Environment",
+    value: "t.Iterable[V]",
+    attribute: t.Union[str, int],
+    default: t.Optional[t.Any] = None,
 ) -> "t.List[t.Tuple[t.Any, t.List[V]]]":
     """Group a sequence of objects by an attribute using Python's
     :func:`itertools.groupby`. The attribute can use dot notation for
@@ -1165,10 +1167,22 @@ def do_groupby(
           <li>{{ group.grouper }}: {{ group.list|join(", ") }}
         {% endfor %}</ul>
 
+    You can specify a ``default`` value to use if an object in the list
+    does not have the given attribute.
+
+    .. sourcecode:: jinja
+
+        <ul>{% for city, items in users|groupby("city", default="NY") %}
+          <li>{{ city }}: {{ items|map(attribute="name")|join(", ") }}</li>
+        {% endfor %}</ul>
+
+    .. versionchanged:: 3.0
+        Added the ``default`` parameter.
+
     .. versionchanged:: 2.6
         The attribute supports dot notation for nested access.
     """
-    expr = make_attrgetter(environment, attribute)
+    expr = make_attrgetter(environment, attribute, default=default)
     return [
         _GroupTuple(key, list(values))
         for key, values in groupby(sorted(value, key=expr), expr)
@@ -1337,7 +1351,7 @@ def do_map(context, value, *args, **kwargs):
     .. code-block:: python
 
         (u.username for u in users)
-        (u.username or "Anonymous" for u in users)
+        (getattr(u, "username", "Anonymous") for u in users)
         (do_lower(x) for x in titles)
 
     .. versionchanged:: 2.11.0
