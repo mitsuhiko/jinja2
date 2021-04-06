@@ -668,6 +668,7 @@ class TestAutoEscape:
         )
         assert tmpl.render() == " foo=&#34;&amp;lt;test&amp;gt;&#34;"
 
+    #
     def test_volatile(self):
         env = Environment(autoescape=True)
         tmpl = env.from_string(
@@ -677,6 +678,7 @@ class TestAutoEscape:
         assert tmpl.render(foo=False) == " foo=&#34;&amp;lt;test&amp;gt;&#34;"
         assert tmpl.render(foo=True) == ' foo="&lt;test&gt;"'
 
+    # TODO write for custom escaping
     def test_scoping(self):
         env = Environment()
         tmpl = env.from_string(
@@ -709,6 +711,31 @@ class TestAutoEscape:
         env = Environment(autoescape=True)
         pysource = env.compile(tmplsource, raw=True)
         assert "&lt;testing&gt;\\n" in pysource
+
+    def test_volatile_scoping_custom_escape(self, return_custom_autoescape):
+        env = Environment(autoescape=return_custom_autoescape)
+        tmplsource = """
+        {% autoescape val %}
+            {% macro foo(x) %}
+                [{{ x }}]
+            {% endmacro %}
+            {{ foo('bar').__class__.__name__ }}
+        {% endautoescape %}
+        {{ '<testing$>' }}
+        """
+        tmpl = env.from_string(tmplsource)
+        assert tmpl.render(val=True).split()[0] == "MarkupWrapper"
+        assert tmpl.render(val=False).split()[0] == "str"
+
+        # looking at the source we should see <testing> there in raw
+        # (and then escaped as well)
+        env = Environment()
+        pysource = env.compile(tmplsource, raw=True)
+        assert "<testing$>\\n" in pysource
+
+        env = Environment(autoescape=return_custom_autoescape)
+        pysource = env.compile(tmplsource, raw=True)
+        assert "<testing€>\\n" in pysource
 
     def test_overlay_scopes(self):
         class MagicScopeExtension(Extension):

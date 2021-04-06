@@ -8,6 +8,8 @@ from random import choice
 from random import randrange
 from threading import Lock
 from types import CodeType
+from typing import Any
+from typing import Callable
 from urllib.parse import quote_from_bytes
 
 from markupsafe import escape
@@ -682,6 +684,35 @@ def htmlsafe_json_dumps(
         .replace("&", "\\u0026")
         .replace("'", "\\u0027")
     )
+
+
+def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Markup:
+    """
+    Use a simple escape function to generate a wrapped Markup class
+
+    this class uses this `custom_escape` function to escape and
+    at the same time makes sure that no already escaped string is
+    escaped again
+    """
+
+    class MarkupWrapper(Markup):
+        """
+        Make sure that the custom escape function is used
+        """
+
+        @classmethod
+        def escape(cls, s):
+            """
+            Make sure the custom escape function does not escape
+            already escaped strings
+            Also make sure the escaped string is marked as escaped
+            with the correct class
+            """
+            if hasattr(s, "__html__"):
+                return s
+            return cls(custom_escape(s))  # noqa: B902
+
+    return MarkupWrapper
 
 
 class Cycler:

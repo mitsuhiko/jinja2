@@ -10,6 +10,8 @@ from typing import Tuple as TupleType
 
 from markupsafe import Markup
 
+from jinja2.utils import get_wrapped_escape_class
+
 _binop_to_func = {
     "*": operator.mul,
     "/": operator.truediv,
@@ -74,31 +76,16 @@ class EvalContext:
 
         # We need to save escape function as autoescape can be
         # overwritten by {% autoescape %} environment.
+        self._markup_class: "Markup"
         if callable(self.autoescape):
-            self._escape_func = self.autoescape
-            self._wrapping_required = True
+            self._markup_class = get_wrapped_escape_class(self.autoescape)
         else:
-            self._escape_func = self.environment.default_markup_class.escape
-            self._wrapping_required = False
+            self._markup_class = self.environment.default_markup_class
 
-    def get_escape_function(self):
-        if self._wrapping_required:
+    def get_escape_function(self) -> "Markup":
+        return self._markup_class.escape
 
-            def custom_escape_wrapper(s):
-                """
-                Make sure the custom escape function does not escape
-                already escaped strings
-                Also make sure the escaped string is marked as escaped
-                with the correct class
-                """
-                if hasattr(s, "__html__"):
-                    return s
-                return self.mark_safe(self._escape_func(s))
-
-            return custom_escape_wrapper
-        return self._escape_func
-
-    def mark_safe(outer_self, input: str) -> Markup:  # noqa: B902
+    def mark_safe(self, input: str) -> "Markup":
         """
         Mark a string as safe by creating a Markup class
 
@@ -106,17 +93,7 @@ class EvalContext:
         if possible so custom escape functions
         are correctly handeled by the Markup class.
         """
-
-        class MarkupWrapper(Markup):
-            """
-            Make sure that the custom escape function is used
-            """
-
-            @classmethod
-            def escape(cls, s):
-                return outer_self.get_escape_function()(s)  # noqa: B902
-
-        return MarkupWrapper(input)
+        return self._markup_class(input)
 
     def save(self):
         return self.__dict__.copy()

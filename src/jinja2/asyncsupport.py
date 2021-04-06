@@ -3,8 +3,6 @@ import asyncio
 import inspect
 from functools import update_wrapper
 
-from markupsafe import Markup
-
 from .environment import TemplateModule
 from .runtime import LoopContext
 from .utils import concat
@@ -94,10 +92,7 @@ def wrap_macro_invoke(original_invoke):
     async def async_invoke(self, arguments, autoescape):
         rv = await self._func(*arguments)
         if autoescape:
-            # TODO Test for custom autoescape needed
-            # IMO this could fail but I can't think of a test that would
-            # trigger this fail
-            rv = Markup(rv)
+            rv = self._mark_safe(rv)
         return rv
 
     @internalcode

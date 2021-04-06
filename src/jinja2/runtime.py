@@ -6,7 +6,6 @@ from itertools import chain
 from types import MethodType
 
 from markupsafe import escape as html_escape  # noqa: F401
-from markupsafe import Markup
 from markupsafe import soft_str
 
 from .exceptions import TemplateNotFound  # noqa: F401
@@ -28,7 +27,6 @@ exported = [
     "LoopContext",
     "TemplateReference",
     "Macro",
-    "Markup",
     "TemplateRuntimeError",
     "missing",
     "concat",
@@ -589,6 +587,7 @@ class Macro:
         default_autoescape=None,
     ):
         self._environment = environment
+        self._mark_safe = environment.default_markup_class
         self._func = func
         self._argument_count = len(arguments)
         self.name = name
@@ -620,8 +619,14 @@ class Macro:
         # argument to callables otherwise anyway.  Worst case here is
         # that if no eval context is passed we fall back to the compile
         # time autoescape flag.
+
         if args and isinstance(args[0], EvalContext):
             autoescape = args[0].autoescape
+            # If the eval contex is available we use it to determine
+            # the correct mark safe method
+            # otherwise mark safe is already set in the __init__
+            # function from enviromental context
+            self._mark_safe = args[0].mark_safe
             args = args[1:]
         else:
             autoescape = self._default_autoescape
@@ -683,9 +688,7 @@ class Macro:
         """This method is being swapped out by the async implementation."""
         rv = self._func(*arguments)
         if autoescape:
-            # TODO We need to take care of this Markup call for
-            #      custom escape functions
-            rv = Markup(rv)
+            rv = self._mark_safe(rv)
         return rv
 
     def __repr__(self):

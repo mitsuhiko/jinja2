@@ -9,6 +9,7 @@ from collections import ChainMap
 from functools import partial
 from functools import reduce
 
+from markupsafe import escape as html_escape
 from markupsafe import Markup
 
 from . import nodes
@@ -49,6 +50,7 @@ from .utils import import_string
 from .utils import internalcode
 from .utils import LRUCache
 from .utils import missing
+from jinja2.utils import get_wrapped_escape_class
 
 # for direct template usage we have up to ten living environments
 _spontaneous_environments = LRUCache(10)
@@ -198,28 +200,6 @@ class Environment:
             expression before it is output.  For example one can convert
             ``None`` implicitly into an empty string here.
 
-        `default_markup_class`
-            a class that represents a safe input. Should be markupsafes
-            Markup class or an subclass of it overwriting the escape
-            function. The classes escape function is used as default
-            escape function.
-            If you write your own Subclass with a custom escape function
-            make sure the escape function returns a instance of
-            your own subclass and only escapes string is required.
-            Take this minimal working example as basis::
-
-                class CustomMarkup(Markup):
-                    @classmethod
-                    def escape(cls, s):
-                        if hasattr(s, '__html__'):
-                            return s
-                        return cls(s.replace("foo", "bar"))
-
-
-            Parameter defaults to Markup class of package markupsafe
-
-            .. versionadded:: 3.0
-
         `autoescape`
             If set to ``True`` the XML/HTML autoescaping feature is enabled by
             default.  For more details about autoescaping see
@@ -239,6 +219,16 @@ class Environment:
 
             .. versionchanged:: 2.4
                `autoescape` can now be a function
+
+        `default_escape_function`
+            define a custom escape function that is used instead of
+            the default (HTML) escape function of the package markupsafe
+
+            if the default escape function is given but
+            autoescape(None) returns a function then this function is
+            considered as default escape function
+
+            .. versionadded:: 3.0
 
         `loader`
             The template loader for this environment.
@@ -323,7 +313,7 @@ class Environment:
         auto_reload=True,
         bytecode_cache=None,
         enable_async=False,
-        default_markup_class=Markup,
+        default_escape_function=html_escape,
     ):
         # !!Important notice!!
         #   The constructor accepts quite a few arguments that should be
@@ -354,9 +344,15 @@ class Environment:
         self.undefined: t.Type[Undefined] = undefined
         self.optimized = optimized
         self.finalize = finalize
-        # TODO Write test for this and use it
-        self.default_markup_class = default_markup_class
         self.autoescape = autoescape
+        if default_escape_function != html_escape:
+            self.default_markup_class = get_wrapped_escape_class(
+                default_escape_function
+            )
+        elif callable(self.autoescape) and callable(self.autoescape(None)):
+            self.default_markup_class = get_wrapped_escape_class(self.autoescape(None))
+        else:
+            self.default_markup_class = Markup
 
         # defaults
         self.filters = DEFAULT_FILTERS.copy()

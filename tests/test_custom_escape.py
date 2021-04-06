@@ -1,14 +1,8 @@
-from markupsafe import Markup
-
 from jinja2 import Environment
 
 
-class CustomMarkup(Markup):
-    @classmethod
-    def escape(cls, s):
-        if hasattr(s, "__html__"):
-            return s
-        return cls(s.replace("$", "€"))
+def custom_escape(s):
+    return str(s).replace("$", "€")
 
 
 class TestCustomAutoescape:
@@ -60,7 +54,7 @@ class TestCustomAutoescape:
         assert t.render(foo="<FOO>") == "<FOO>"
 
     def test_custom_markup_environment_autoescape(self):
-        env = Environment(default_markup_class=CustomMarkup, autoescape=True)
+        env = Environment(default_escape_function=custom_escape, autoescape=True)
         t = env.from_string("{{ foo }}")
         assert t.render(foo="100$") == "100€"
         t = env.from_string("{{ foo|e }}")
@@ -73,7 +67,7 @@ class TestCustomAutoescape:
         assert t.render(foo="100$") == "100$"
 
     def test_custom_markup_environment_manual_escape(self):
-        env = Environment(default_markup_class=CustomMarkup)
+        env = Environment(default_escape_function=custom_escape)
         t = env.from_string("{{ foo|e }}")
         assert t.render(foo="100$") == "100€"
         t = env.from_string("{{ foo|escape }}")
