@@ -658,6 +658,41 @@ class TestAutoEscape:
             "<HelloWorld>",
         ]
 
+    def test_scoped_setting_custom_escape(
+        self, env_custom_autoescape, custom_escape_func
+    ):
+        env = env_custom_autoescape
+        tmpl = env.from_string(
+            """
+            {{ "<HelloWorld$>" }}
+            {% autoescape false %}
+                {{ "<HelloWorld$>" }}
+            {% endautoescape %}
+            {{ "<HelloWorld$>" }}
+        """
+        )
+        assert tmpl.render().split() == [
+            "<HelloWorld€>",
+            "<HelloWorld$>",
+            "<HelloWorld€>",
+        ]
+
+        env = Environment(autoescape=False, default_escape_function=custom_escape_func)
+        tmpl = env.from_string(
+            """
+            {{ "<HelloWorld$>" }}
+            {% autoescape true %}
+                {{ "<HelloWorld$>" }}
+            {% endautoescape %}
+            {{ "<HelloWorld$>" }}
+        """
+        )
+        assert tmpl.render().split() == [
+            "<HelloWorld$>",
+            "<HelloWorld€>",
+            "<HelloWorld$>",
+        ]
+
     def test_nonvolatile(self):
         env = Environment(autoescape=True)
         tmpl = env.from_string('{{ {"foo": "<test>"}|xmlattr|escape }}')
@@ -668,7 +703,19 @@ class TestAutoEscape:
         )
         assert tmpl.render() == " foo=&#34;&amp;lt;test&amp;gt;&#34;"
 
-    #
+    def test_nonvolatile_custom_escape(self, custom_escape_func):
+        def escape_more(s):
+            return custom_escape_func(s).replace('"', "&#34;")
+
+        env = Environment(autoescape=lambda x: escape_more)
+        tmpl = env.from_string('{{ {"foo": "<test$>"}|xmlattr|escape }}')
+        assert tmpl.render() == ' foo="<test€>"'
+        tmpl = env.from_string(
+            '{% autoescape false %}{{ {"foo": "<test$>"}'
+            "|xmlattr|escape }}{% endautoescape %}"
+        )
+        assert tmpl.render() == " foo=&#34;<test€>&#34;"
+
     def test_volatile(self):
         env = Environment(autoescape=True)
         tmpl = env.from_string(
@@ -678,7 +725,18 @@ class TestAutoEscape:
         assert tmpl.render(foo=False) == " foo=&#34;&amp;lt;test&amp;gt;&#34;"
         assert tmpl.render(foo=True) == ' foo="&lt;test&gt;"'
 
-    # TODO write for custom escaping
+    def test_volatile_custom_escape(self, custom_escape_func):
+        def escape_more(s):
+            return custom_escape_func(s).replace('"', "&#34;")
+
+        env = Environment(autoescape=lambda x: escape_more)
+        tmpl = env.from_string(
+            '{% autoescape foo %}{{ {"foo": "<test$>"}'
+            "|xmlattr|escape }}{% endautoescape %}"
+        )
+        assert tmpl.render(foo=True) == ' foo="<test€>"'
+        assert tmpl.render(foo=False) == " foo=&#34;<test€>&#34;"
+
     def test_scoping(self):
         env = Environment()
         tmpl = env.from_string(
@@ -686,6 +744,14 @@ class TestAutoEscape:
             '{% endautoescape %}{{ x }}{{ "<y>" }}'
         )
         assert tmpl.render(x=1) == "&lt;x&gt;1<y>"
+
+    def test_scoping_custom_escape(self, custom_escape_func):
+        env = Environment(default_escape_function=custom_escape_func)
+        tmpl = env.from_string(
+            '{% autoescape true %}{% set x = "<x$>" %}{{ x }}'
+            '{% endautoescape %}{{ x }}{{ "<y$>" }}'
+        )
+        assert tmpl.render(x=1) == "<x€>1<y$>"
 
     def test_volatile_scoping(self):
         env = Environment()

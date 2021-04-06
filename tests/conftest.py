@@ -61,7 +61,7 @@ def custom_escape_func():
     """ Return a simple custom escape function"""
 
     def dollar_to_eur(s):
-        return s.replace("$", "€")
+        return str(s).replace("$", "€")
 
     return dollar_to_eur
 
