@@ -7,7 +7,6 @@ from io import StringIO
 from itertools import chain
 from keyword import iskeyword as is_python_keyword
 
-from markupsafe import escape
 from markupsafe import Markup
 
 from . import nodes
@@ -1341,7 +1340,7 @@ class CodeGenerator(NodeVisitor):
         const = node.as_const(frame.eval_ctx)
 
         if frame.eval_ctx.autoescape:
-            const = escape(const)
+            const = frame.eval_ctx.get_escape_function()(const)
 
         # Template data doesn't go through finalize.
         if isinstance(node, nodes.TemplateData):
