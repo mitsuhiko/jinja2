@@ -1627,10 +1627,7 @@ class CodeGenerator(NodeVisitor):
             self.visit(arg, frame)
             self.write(", ")
         self.write(")")
-        # in case we have a custom autoescape we need to consider it
-        if callable(frame.eval_ctx.autoescape):
-            # We assume that filter
-            self.write("escape=context.eval_ctx.autoescape")
+        self.write(", escape_func=context.eval_ctx.autoescape")
         self.write(")")
 
     @optimizeconst

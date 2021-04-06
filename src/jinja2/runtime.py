@@ -61,8 +61,13 @@ def markup_join(seq, escape_func=html_escape):
     return concat(buf)
 
 
-def str_join(seq):
-    """Simple args to string conversion and concatenation."""
+def str_join(seq, escape_func=html_escape):
+    """
+    Simple args to string conversion and concatenation.
+
+    note: the escape_function parameter is never used, it only
+          added to allow easier calls from the visit_Concat
+    """
     return concat(map(str, seq))
 
 
