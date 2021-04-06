@@ -202,7 +202,6 @@ class InternationalizationExtension(Extension):
 
     tags = {"trans"}
 
-    # TODO: the i18n extension is currently reevaluating values in a few
     # situations.  Take this example:
     #   {% trans count=something() %}{{ count }} foo{% pluralize
     #     %}{{ count }} fooss{% endtrans %}

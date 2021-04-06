@@ -632,9 +632,28 @@ class TestFilter:
         tmpl = env.from_string('{{ string|replace("o", ">x<") }}')
         assert tmpl.render(string=Markup("foo")) == "f&gt;x&lt;&gt;x&lt;"
 
+    def test_replace_custom_escape(self, env_custom_autoescape):
+        env = Environment()
+        tmpl = env.from_string('{{ string|replace("o", 42) }}')
+        assert tmpl.render(string="<$foo>$") == "<$f4242>$"
+        env = env_custom_autoescape
+        tmpl = env.from_string('{{ string|replace("o", 42) }}')
+        assert tmpl.render(string="<$foo>$") == "<€f4242>€"
+        tmpl = env.from_string('{{ string|replace("<$", 42) }}')
+        assert tmpl.render(string="<$foo>$") == "42foo>€"
+        tmpl = env.from_string('{{ string|replace("o", ">$x<$") }}')
+        assert tmpl.render(string=env.default_markup_class("foo")) == "f>€x<€>€x<€"
+        tmpl = env.from_string('{{ string|replace("o", ">$x<$") }}')
+        assert tmpl.render(string=Markup("foo")) == "f>€x<€>€x<€"
+
     def test_forceescape(self, env):
         tmpl = env.from_string("{{ x|forceescape }}")
         assert tmpl.render(x=Markup("<div />")) == "&lt;div /&gt;"
+
+    def test_foceescape_custom(self, env_custom_autoescape):
+        env = env_custom_autoescape
+        tmpl = env.from_string("{{ x|forceescape }}")
+        assert tmpl.render(x=Markup("<div$ />")) == "<div€ />"
 
     def test_safe(self, env):
         env = Environment(autoescape=True)
@@ -642,6 +661,13 @@ class TestFilter:
         assert tmpl.render() == "<div>foo</div>"
         tmpl = env.from_string('{{ "<div>foo</div>" }}')
         assert tmpl.render() == "&lt;div&gt;foo&lt;/div&gt;"
+
+    def test_safe_custom_escape(self, env_custom_autoescape):
+        env = env_custom_autoescape
+        tmpl = env.from_string('{{ "<div>$foo$</div>"|safe }}')
+        assert tmpl.render() == "<div>$foo$</div>"
+        tmpl = env.from_string('{{ "<div>$foo$</div>" }}')
+        assert tmpl.render() == "<div>€foo€</div>"
 
     @pytest.mark.parametrize(
         ("value", "expect"),

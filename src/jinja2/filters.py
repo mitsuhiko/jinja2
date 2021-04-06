@@ -232,6 +232,14 @@ def do_replace(
     else:
         s = soft_str(s)
 
+    # Special case, if user uses Markup class directly to mark
+    # somethin as safe but uses custom escape function
+    if (
+        hasattr(s, "__html__")
+        and s.__class__ != eval_ctx.mark_safe("").__class__ != s.__class__
+    ):
+        s = eval_ctx.mark_safe(s.__html__())
+
     return s.replace(soft_str(old), soft_str(new), count)
 
 
@@ -1231,7 +1239,7 @@ def do_mark_safe(value: str) -> Markup:
     """
     # TODO This should be also an evalcontext filter but some
     #      test are failing if it is
-    #      We need to figure out why this is happening!
+    #      We need to figure out why this is happening?
     return Markup(value)
     # return eval_ctx.mark_safe(value)
 

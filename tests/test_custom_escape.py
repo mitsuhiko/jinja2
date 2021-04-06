@@ -51,7 +51,12 @@ class TestCustomAutoescape:
     def test_default_escape(self):
         env = Environment(autoescape=True)
         t = env.from_string("{{ foo|safe }}")
-        assert t.render(foo="<FOO>") == "<FOO>"
+        assert t.render(foo="<$FOO$>") == "<$FOO$>"
+
+    def test_default_escape_custom(self, env_custom_autoescape):
+        env = env_custom_autoescape
+        t = env.from_string("{{ foo|safe }}")
+        assert t.render(foo="<$FOO$>") == "<$FOO$>"
 
     def test_custom_markup_environment_autoescape(self):
         env = Environment(default_escape_function=custom_escape, autoescape=True)

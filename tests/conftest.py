@@ -57,14 +57,21 @@ def prefix_loader(filesystem_loader, dict_loader):
 
 
 @pytest.fixture
-def return_custom_autoescape():
+def custom_escape_func():
+    """ Return a simple custom escape function"""
+
+    def dollar_to_eur(s):
+        return s.replace("$", "€")
+
+    return dollar_to_eur
+
+
+@pytest.fixture
+def return_custom_autoescape(custom_escape_func):
     """return a simple example for a custom escape function"""
 
     def do_return_autoescape(suffix):
-        def dollar_to_eur(s):
-            return s.replace("$", "€")
-
-        return dollar_to_eur
+        return custom_escape_func
 
     return do_return_autoescape
 
