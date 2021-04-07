@@ -49,7 +49,13 @@ def identity(x):
 
 
 def markup_join(seq, escape_func=html_escape):
-    """Concatenation that escapes if necessary and converts to string."""
+    """
+    Concatenation that escapes if necessary and converts to string.
+
+    .. versionchanged:: 3.0
+        added optional parameter escape_function to make
+        use the contex based escape function
+    """
     buf = []
     iterator = map(soft_str, seq)
     for arg in iterator:
@@ -63,8 +69,9 @@ def str_join(seq, escape_func=html_escape):
     """
     Simple args to string conversion and concatenation.
 
-    note: the escape_function parameter is never used, it only
-          added to allow easier calls from the visit_Concat
+    .. versionchanged:: 3.0
+            added optional and currently ignored parameter
+            ``escape_function`` to allow easier usage of ``markup_join``
     """
     return concat(map(str, seq))
 

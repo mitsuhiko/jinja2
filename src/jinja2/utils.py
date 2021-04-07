@@ -602,13 +602,22 @@ def select_autoescape(
     to be considered and the values are the escape function to be used
     to escape this kind of files.
 
+    I.e. if you use the `latex package <https://pypi.org/project/latex/>`_
+    you can create an environment that escapes all LaTeX files
+    with the correct escaper but still handle HTML files correctly::
+
+        from jinja2 import Environment, select_autoescape
+        from latex import escape as latex_escape
+        env = Environment(autoescape=select_autoescape(
+            special_extensions={'tex': latex_escape}
+        ))
+
     For security reasons this function operates case insensitive.
 
-    .. versionchanged:: 3.0
-
-    With version 3.0 the parameter special_extensions was added
-
     .. versionadded:: 2.9
+        created function
+    .. versionchanged:: 3.0
+        parameter ``special_extensions`` was added
     """
 
     def extension_str(x):
@@ -694,9 +703,15 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
     """
     Use a simple escape function to generate a wrapped Markup class
 
-    this class uses this `custom_escape` function to escape and
-    at the same time makes sure that no already escaped string is
-    escaped again
+    this class uses the given ``custom_escape`` function to escape
+    the value andat the same time makes sure that no already escaped
+    string is escaped again.
+
+    The returned class is a subclass of :class:`markupsafe.Markup`,
+    so it represents a complete ``str`` subclass that is marked as
+    safe
+
+    .. versionadded:: 3.0
     """
 
     class MarkupWrapper(Markup):

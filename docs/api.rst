@@ -220,6 +220,8 @@ useful if you want to dig deeper into Jinja or :ref:`develop extensions
     :members: disable_buffering, enable_buffering, dump
 
 
+.. _autoescaping:
+
 Autoescaping
 ------------
 
@@ -268,7 +270,8 @@ the `autoescape` block (see :ref:`autoescape-overrides`).
 
 Note that :func:`~jinja2.select_autoescape` offers also a parameter
 `special_extensions` that allows you to define a custom escape function,
-i.e. if you handling LaTeX files.
+i.e. if you handling LaTeX files
+(see description of :func:`~jinja.select_autoescape` above for example).
 
 To write your own custom escape function simply return it for the
 wanted template extension. For instance if you are fan of peace in
@@ -658,6 +661,13 @@ functions to a Jinja environment.
     Genshi.  It's expected that more template engines and framework will pick
     up the `__html__` concept soon.
 
+As the :class:`Markup` class implements calls for its ``Markup.escape``
+method i.e. when using the ``join`` or the modulo ``%`` operator it is
+important that correct :class:`Markup` subclass is used when using
+custom escaping defined by the :ref:`autoescaping` settings.
+To guarantee this, the following function is used internally.
+
+.. autofunction:: jinja2.utils.get_wrapped_escape_class
 
 Exceptions
 ----------
@@ -874,6 +884,10 @@ eval context object itself.
 
       `True` if the compiler cannot evaluate some expressions at compile
       time.  At runtime this should always be `False`.
+
+    .. automethod:: get_escape_function
+
+    .. automethod:: mark_safe
 
 
 .. _global-namespace:

@@ -72,6 +72,10 @@ def escape(eval_ctx: "EvalContext", s: t.Union[str, "HasHTML"]) -> Markup:
     """
     Escape a string with the escape function active in the current
     eval context
+
+    .. versionadded:: 3.0
+        replaced the hard coded HTML escape function of ``markupsafe``
+        with an context aware escape function
     """
     return eval_ctx.get_escape_function()(s)
 
@@ -168,7 +172,12 @@ def _prepare_attribute_parts(
 
 @evalcontextfilter
 def do_forceescape(eval_ctx: "EvalContext", value: "t.Union[str, HasHTML]") -> Markup:
-    """Enforce HTML escaping.  This will probably double escape variables."""
+    """
+    Enforce HTML escaping.  This will probably double escape variables.
+
+    .. versionchanged:: 3.0
+        made function context aware to use context based escape filter
+    """
     if hasattr(value, "__html__"):
         value = t.cast("HasHTML", value).__html__()
     return escape(eval_ctx, str(value))
@@ -226,6 +235,9 @@ def do_replace(
 
         {{ "aaaaargh"|replace("a", "d'oh, ", 2) }}
             -> d'oh, d'oh, aaargh
+
+    .. versionchanged:: 3.0
+        made function context aware to use context based escape filter
     """
     if count is None:
         count = -1
@@ -584,6 +596,9 @@ def do_join(
 
         {{ users|join(', ', attribute='username') }}
 
+    .. versionchanged:: 3.0
+        made function context aware to use context based escape filter
+
     .. versionadded:: 2.6
        The `attribute` parameter was added.
     """
@@ -736,6 +751,9 @@ def do_urlize(
         extra schemes.
 
     .. versionchanged:: 3.0
+        made function context aware to use context based escape filter
+
+    .. versionchanged:: 3.0
         The ``extra_schemes`` parameter was added.
 
     .. versionchanged:: 3.0
@@ -796,6 +814,9 @@ def do_indent(
     :param width: Number of spaces, or a string, to indent by.
     :param first: Don't skip indenting the first line.
     :param blank: Don't skip indenting empty lines.
+
+    .. versionchanged:: 3.0
+        made function context aware to use context based escape filter
 
     .. versionchanged:: 3.0
         ``width`` can be a string.

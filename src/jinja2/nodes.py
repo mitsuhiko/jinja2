@@ -66,6 +66,12 @@ class NodeType(type):
 class EvalContext:
     """Holds evaluation time information.  Custom attributes can be attached
     to it in extensions.
+
+    .. versionchanged:: 3.0
+
+    - Added ``get_escape_function`` and ``mark_safe`` functions
+    - allow autoescaped to be not only boolean but also an
+      escape function
     """
 
     def __init__(self, environment, template_name=None):
@@ -85,6 +91,12 @@ class EvalContext:
             self._markup_class = self.environment.default_markup_class
 
     def get_escape_function(self) -> Callable[[Any], "Markup"]:
+        """
+        return the currently valid escape function
+
+        .. versionadded:: 3.0
+
+        """
         return self._markup_class.escape
 
     def mark_safe(self, input: str) -> "Markup":
@@ -94,6 +106,9 @@ class EvalContext:
         use this function instead of direct calls to Markup
         if possible so custom escape functions
         are correctly handeled by the Markup class.
+
+        .. versionadded:: 3.0
+
         """
         return self._markup_class(input)
 

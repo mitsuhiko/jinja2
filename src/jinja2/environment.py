@@ -203,15 +203,25 @@ class Environment:
         `autoescape`
             If set to ``True`` the XML/HTML autoescaping feature is enabled by
             default.  For more details about autoescaping see
-            :class:`~markupsafe.Markup`.  As of Jinja 2.4 this can also
+            :class:`~markupsafe.Markup`.
+
+            As of Jinja 2.4 this can also
             be a callable that is passed the template name and has to
             return ``True`` or ``False`` depending on autoescape should be
             enabled by default.
+
             As of Jinja 3.0 the autoescape can be even smarter.
             If the given function does not return a boolean but a
             function again, this function is considered to be the
             escape function that shall be used. So you can used the
             same enviroment to autoescape LaTeX and HTML files.
+
+            Use this with care.
+            Not all functions within Jinja get the context
+            that is required to determine the correct escape function.
+            If you run in troubles simply use different environments
+            with custom ``default_escape_function`` (see below) for
+            each file type.
 
             .. versionchanged:: 3.0
                 if `autoescape` function returns not True or False but a Callable
@@ -224,9 +234,8 @@ class Environment:
             define a custom escape function that is used instead of
             the default (HTML) escape function of the package markupsafe
 
-            if the default escape function is given but
-            autoescape(None) returns a function then this function is
-            considered as default escape function
+            The default value can be overwritten also by the ``autoescape``
+            parameter if the result of ``autoescape(None)`` is a function.
 
             .. versionadded:: 3.0
 
