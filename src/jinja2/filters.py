@@ -31,7 +31,13 @@ if t.TYPE_CHECKING:
 
     class HasHTML(te.Protocol):
         def __html__(self) -> str:
-            pass
+            ...
+
+        def __add__(self, other: t.Union["HasHTML", str]) -> "HasHTML":
+            ...
+
+        def splitlines(self) -> t.Iterable["HasHTML"]:
+            ...
 
 
 def contextfilter(f: "F") -> "F":
@@ -62,12 +68,12 @@ def environmentfilter(f: "F") -> "F":
 
 
 @evalcontextfilter
-def escape(eval_ctx: "EvalContext", s: str) -> Markup:
+def escape(eval_ctx: "EvalContext", s: t.Union[str, "HasHTML"]) -> Markup:
     """
     Escape a string with the escape function active in the current
     eval context
     """
-    return eval_ctx.get_escape_function()(s)  # type: ignore
+    return eval_ctx.get_escape_function()(s)
 
 
 def ignore_case(value: "V") -> "V":
@@ -201,7 +207,11 @@ def do_urlencode(
 
 @evalcontextfilter
 def do_replace(
-    eval_ctx: "EvalContext", s: str, old: str, new: str, count: t.Optional[int] = None
+    eval_ctx: "EvalContext",
+    s: t.Union[str, "HasHTML"],
+    old: str,
+    new: str,
+    count: t.Optional[int] = None,
 ) -> str:
     """Return a copy of the value with all occurrences of a substring
     replaced with a new one. The first argument is the substring
@@ -230,7 +240,7 @@ def do_replace(
     ):
         s = escape(eval_ctx, s)
     else:
-        s = soft_str(s)
+        s = soft_str(s)  # type: ignore
 
     # Special case, if user uses Markup class directly to mark
     # somethin as safe but uses custom escape function
@@ -238,6 +248,7 @@ def do_replace(
         hasattr(s, "__html__")
         and s.__class__ != eval_ctx.mark_safe("").__class__ != s.__class__
     ):
+        s = t.cast("HasHTML", s)
         s = eval_ctx.mark_safe(s.__html__())
 
     return s.replace(soft_str(old), soft_str(new), count)
@@ -774,7 +785,7 @@ def do_urlize(
 @evalcontextfilter
 def do_indent(
     eval_ctx: "EvalContext",
-    s: str,
+    s: t.Union[str, "HasHTML"],
     width: t.Union[int, str] = 4,
     first: bool = False,
     blank: bool = False,
@@ -805,10 +816,13 @@ def do_indent(
         indention = eval_ctx.mark_safe(indention)
         newline = eval_ctx.mark_safe(newline)
         # Make sure the correct MarkupClass is used
+        s = t.cast("HasHTML", s)
         s = eval_ctx.mark_safe(s.__html__())
 
     s += newline  # this quirk is necessary for splitlines method
 
+    # Markup is a subclass of string, so lets just assume it is a string
+    s = t.cast(str, str)
     if blank:
         rv = (newline + indention).join(s.splitlines())
     else:

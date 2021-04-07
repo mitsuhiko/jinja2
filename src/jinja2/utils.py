@@ -11,6 +11,7 @@ from threading import Lock
 from types import CodeType
 from typing import Any
 from typing import Callable
+from typing import Type
 from urllib.parse import quote_from_bytes
 
 from markupsafe import escape
@@ -689,7 +690,7 @@ def htmlsafe_json_dumps(
 
 # Note
 @lru_cache(100)
-def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Markup:
+def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup]:
     """
     Use a simple escape function to generate a wrapped Markup class
 

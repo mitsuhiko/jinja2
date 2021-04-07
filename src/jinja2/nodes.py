@@ -6,7 +6,9 @@ import inspect
 import operator
 from collections import deque
 from typing import Any
+from typing import Callable
 from typing import Tuple as TupleType
+from typing import Type
 
 from markupsafe import Markup
 
@@ -76,13 +78,13 @@ class EvalContext:
 
         # We need to save escape function as autoescape can be
         # overwritten by {% autoescape %} environment.
-        self._markup_class: "Markup"
+        self._markup_class: Type["Markup"]
         if callable(self.autoescape):
             self._markup_class = get_wrapped_escape_class(self.autoescape)
         else:
             self._markup_class = self.environment.default_markup_class
 
-    def get_escape_function(self) -> "Markup":
+    def get_escape_function(self) -> Callable[[Any], "Markup"]:
         return self._markup_class.escape
 
     def mark_safe(self, input: str) -> "Markup":
