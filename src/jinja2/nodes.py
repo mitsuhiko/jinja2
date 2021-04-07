@@ -979,7 +979,7 @@ class MarkSafe(Expr):
 
     def as_const(self, eval_ctx=None):
         eval_ctx = get_eval_context(self, eval_ctx)
-        return Markup(self.expr.as_const(eval_ctx))
+        return eval_ctx.mark_safe(self.expr.as_const(eval_ctx))
 
 
 class MarkSafeIfAutoescape(Expr):

@@ -766,7 +766,7 @@ def do_urlize(
     )
 
     if eval_ctx.autoescape:
-        rv = Markup(rv)
+        rv = eval_ctx.mark_safe(rv)
 
     return rv
 
