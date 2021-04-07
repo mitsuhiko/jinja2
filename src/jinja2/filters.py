@@ -822,7 +822,7 @@ def do_indent(
     s += newline  # this quirk is necessary for splitlines method
 
     # Markup is a subclass of string, so lets just assume it is a string
-    s = t.cast(str, str)
+    s = t.cast(str, s)
     if blank:
         rv = (newline + indention).join(s.splitlines())
     else:
