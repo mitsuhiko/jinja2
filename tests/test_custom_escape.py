@@ -1,6 +1,8 @@
 import pytest
 
+from jinja2 import DictLoader
 from jinja2 import Environment
+from jinja2 import select_autoescape
 from jinja2.utils import get_wrapped_escape_class
 
 
@@ -90,3 +92,41 @@ class TestCustomAutoescape:
         assert t.render(foo="100$") == "100$"
         t = env.from_string("{{ foo|safe|escape }}")
         assert t.render(foo="100$") == "100$"
+
+    def test_mixed_files_include(self):
+        def star(s):
+            return str(s).replace("*", "star")
+
+        def tilde(s):
+            return str(s).replace("~", "tilde")
+
+        def plus(s):
+            return str(s).replace("+", "plus")
+
+        chars = "<*~+>"
+
+        env = Environment(
+            autoescape=select_autoescape(
+                special_extensions={"star": star, "tilde": tilde, "plus": plus}
+            ),
+            loader=DictLoader(
+                {
+                    "main.star": "{{ foo }};{% include 'inc.tilde' %};",
+                    "inc.tilde": "{{ foo }};{% include 'simple.plus' %};",
+                    "simple.plus": "{{ foo }}",
+                    "simple.star": "{{ foo }}",
+                    "simple.tilde": "{{ foo }}",
+                }
+            ),
+        )
+        # First test simple stuff
+        t = env.get_template("simple.plus")
+        assert t.render(foo=chars) == "<*~plus>"
+        t = env.get_template("simple.star")
+        assert t.render(foo=chars) == "<star~+>"
+        t = env.get_template("simple.tilde")
+        assert t.render(foo=chars) == "<*tilde+>"
+        t = env.get_template("inc.tilde")
+        assert t.render(foo=chars) == "<*tilde+>;<*~plus>;"
+        t = env.get_template("main.star")
+        assert t.render(foo=chars) == "<star~+>;<*tilde+>;<*~plus>;;"
