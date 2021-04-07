@@ -661,8 +661,9 @@ functions to a Jinja environment.
     Genshi.  It's expected that more template engines and framework will pick
     up the `__html__` concept soon.
 
-As the :class:`Markup` class implements calls for its ``Markup.escape``
-method i.e. when using the ``join`` or the modulo ``%`` operator it is
+As the :class:`Markup` class implements calls for its
+``Markup.escape`` method i.e. when using the ``join`` or
+the modulo ``%`` operator it is
 important that correct :class:`Markup` subclass is used when using
 custom escaping defined by the :ref:`autoescaping` settings.
 To guarantee this, the following function is used internally.

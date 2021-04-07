@@ -1,4 +1,7 @@
+import pytest
+
 from jinja2 import Environment
+from jinja2.utils import get_wrapped_escape_class
 
 
 def custom_escape(s):
@@ -58,8 +61,11 @@ class TestCustomAutoescape:
         t = env.from_string("{{ foo|safe }}")
         assert t.render(foo="<$FOO$>") == "<$FOO$>"
 
-    def test_custom_markup_environment_autoescape(self):
-        env = Environment(default_escape_function=custom_escape, autoescape=True)
+    @pytest.mark.parametrize(
+        "escaper", [custom_escape, get_wrapped_escape_class(custom_escape)]
+    )
+    def test_custom_markup_environment_autoescape(self, escaper):
+        env = Environment(default_escape=escaper, autoescape=True)
         t = env.from_string("{{ foo }}")
         assert t.render(foo="100$") == "100€"
         t = env.from_string("{{ foo|e }}")
@@ -71,8 +77,11 @@ class TestCustomAutoescape:
         t = env.from_string("{{ foo|safe|escape }}")
         assert t.render(foo="100$") == "100$"
 
-    def test_custom_markup_environment_manual_escape(self):
-        env = Environment(default_escape_function=custom_escape)
+    @pytest.mark.parametrize(
+        "escaper", [custom_escape, get_wrapped_escape_class(custom_escape)]
+    )
+    def test_custom_markup_environment_manual_escape(self, escaper):
+        env = Environment(default_escape=escaper)
         t = env.from_string("{{ foo|e }}")
         assert t.render(foo="100$") == "100€"
         t = env.from_string("{{ foo|escape }}")

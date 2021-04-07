@@ -8,6 +8,7 @@ import weakref
 from collections import ChainMap
 from functools import partial
 from functools import reduce
+from inspect import isclass
 
 from markupsafe import escape as html_escape
 from markupsafe import Markup
@@ -45,12 +46,12 @@ from .runtime import new_context
 from .runtime import Undefined
 from .utils import concat
 from .utils import consume
+from .utils import get_wrapped_escape_class
 from .utils import have_async_gen
 from .utils import import_string
 from .utils import internalcode
 from .utils import LRUCache
 from .utils import missing
-from jinja2.utils import get_wrapped_escape_class
 
 # for direct template usage we have up to ten living environments
 _spontaneous_environments = LRUCache(10)
@@ -220,7 +221,7 @@ class Environment:
             Not all functions within Jinja get the context
             that is required to determine the correct escape function.
             If you run in troubles simply use different environments
-            with custom ``default_escape_function`` (see below) for
+            with custom ``default_escape`` (see below) for
             each file type.
 
             .. versionchanged:: 3.0
@@ -230,9 +231,21 @@ class Environment:
             .. versionchanged:: 2.4
                `autoescape` can now be a function
 
-        `default_escape_function`
-            define a custom escape function that is used instead of
-            the default (HTML) escape function of the package markupsafe
+        `default_escape`
+            define a custom escape function or class.
+
+            If a class is given it is assumed to by a subclass of
+            :class:`~markupsafe.Markup`.
+
+            If a function is given, it is assumed that this is an escape
+            function. The :func:`~jinja2.utils.get_wrapped_escape_class`
+            function will be used to generate an subclass of
+            :class:`Markup` from this function.
+            It also takes care that no already escaped strings are
+            escaped again. See :ref:`autoescaping`.
+
+            Default value is the HTML escape function of
+            :class:`~markupsafe.Markup`.
 
             The default value can be overwritten also by the ``autoescape``
             parameter if the result of ``autoescape(None)`` is a function.
@@ -322,7 +335,7 @@ class Environment:
         auto_reload=True,
         bytecode_cache=None,
         enable_async=False,
-        default_escape_function=html_escape,
+        default_escape=html_escape,
     ):
         # !!Important notice!!
         #   The constructor accepts quite a few arguments that should be
@@ -354,10 +367,10 @@ class Environment:
         self.optimized = optimized
         self.finalize = finalize
         self.autoescape = autoescape
-        if default_escape_function != html_escape:
-            self.default_markup_class = get_wrapped_escape_class(
-                default_escape_function
-            )
+        if isclass(default_escape):
+            self.default_markup_class = default_escape
+        elif default_escape != html_escape:
+            self.default_markup_class = get_wrapped_escape_class(default_escape)
         elif callable(self.autoescape) and callable(self.autoescape(None)):
             self.default_markup_class = get_wrapped_escape_class(self.autoescape(None))
         else:

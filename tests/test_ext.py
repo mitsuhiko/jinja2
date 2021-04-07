@@ -677,7 +677,7 @@ class TestAutoEscape:
             "<HelloWorld€>",
         ]
 
-        env = Environment(autoescape=False, default_escape_function=custom_escape_func)
+        env = Environment(autoescape=False, default_escape=custom_escape_func)
         tmpl = env.from_string(
             """
             {{ "<HelloWorld$>" }}
@@ -746,7 +746,7 @@ class TestAutoEscape:
         assert tmpl.render(x=1) == "&lt;x&gt;1<y>"
 
     def test_scoping_custom_escape(self, custom_escape_func):
-        env = Environment(default_escape_function=custom_escape_func)
+        env = Environment(default_escape=custom_escape_func)
         tmpl = env.from_string(
             '{% autoescape true %}{% set x = "<x$>" %}{{ x }}'
             '{% endautoescape %}{{ x }}{{ "<y$>" }}'
