@@ -697,19 +697,22 @@ def htmlsafe_json_dumps(
     )
 
 
-# Note
 @lru_cache(100)
 def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup]:
     """
     Use a simple escape function to generate a wrapped Markup class
 
-    this class uses the given ``custom_escape`` function to escape
+    This class uses the given ``custom_escape`` function to escape
     the value andat the same time makes sure that no already escaped
     string is escaped again.
 
     The returned class is a subclass of :class:`markupsafe.Markup`,
     so it represents a complete ``str`` subclass that is marked as
     safe
+
+    :param custom_escape: The function that escapes the objects to a str
+
+    :returns an Markup class using this escape function
 
     .. versionadded:: 3.0
     """
@@ -743,6 +746,9 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
             return cls(custom_escape(s))  # noqa: B902
 
     return MarkupWrapper
+
+
+get_wrapped_escape_class
 
 
 class Cycler:
