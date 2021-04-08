@@ -295,6 +295,15 @@ the world::
 Note that for `.world` files the `{{ var|e }}` and `{{ var | escape }}`
 filters are replaced with the custom escape function.
 
+.. admonition:: A word of caution
+
+    Be aware that mixing files that have different
+    autoescape settings (especially custom escape functions) within
+    one render command, can lead to unexpected behavior.
+    In general the ``{% include %}`` directive works fine but especially
+    ``{% extends %}`` commands can have unexpected outcomes as main template
+    overwrites the context of the included one.
+
 
 .. _identifier-naming:
 

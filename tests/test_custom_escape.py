@@ -107,15 +107,24 @@ class TestCustomAutoescape:
 
         env = Environment(
             autoescape=select_autoescape(
-                special_extensions={"star": star, "tilde": tilde, "plus": plus}
+                special_extensions={"star": star, "tilde": tilde, "plus": plus},
+                enabled_extensions=["htm", "html"],
+                disabled_extensions=["txt"],
             ),
             loader=DictLoader(
                 {
+                    "disable.txt": "{{ foo }};{% include 'inc.tilde' %};",
                     "main.star": "{{ foo }};{% include 'inc.tilde' %};",
+                    "main_disable.star": "{{ foo }};{% include 'disable.txt' %};",
                     "inc.tilde": "{{ foo }};{% include 'simple.plus' %};",
+                    "simple.htm": "{{ foo }}",
                     "simple.plus": "{{ foo }}",
                     "simple.star": "{{ foo }}",
                     "simple.tilde": "{{ foo }}",
+                    "main_html.star": "{{ foo }};{% include 'inc_html.tilde' %};",
+                    "inc_html.tilde": "{{ foo }};{% include 'inc.html' %};",
+                    "inc.html": "{{ foo }};{% include 'inc.txt' %};",
+                    "inc.txt": "{{ foo }};{% include 'simple.plus' %};",
                 }
             ),
         )
@@ -126,7 +135,136 @@ class TestCustomAutoescape:
         assert t.render(foo=chars) == "<star~+>"
         t = env.get_template("simple.tilde")
         assert t.render(foo=chars) == "<*tilde+>"
+        t = env.get_template("simple.htm")
+        assert t.render(foo=chars) == "&lt;*~+&gt;"
         t = env.get_template("inc.tilde")
         assert t.render(foo=chars) == "<*tilde+>;<*~plus>;"
         t = env.get_template("main.star")
         assert t.render(foo=chars) == "<star~+>;<*tilde+>;<*~plus>;;"
+        t = env.get_template("disable.txt")
+        assert t.render(foo=chars) == "<*~+>;<*tilde+>;<*~plus>;;"
+        t = env.get_template("main_disable.star")
+        assert t.render(foo=chars) == "<star~+>;<*~+>;<*tilde+>;<*~plus>;;;"
+        t = env.get_template("main_html.star")
+        assert (
+            t.render(foo=chars) == "<star~+>;<*tilde+>;&lt;*~+&gt;;<*~+>;<*~plus>;;;;"
+        )
+
+    def test_mixed_files_extend(self):
+        def star(s):
+            return str(s).replace("*", "star")
+
+        def tilde(s):
+            return str(s).replace("~", "tilde")
+
+        def plus(s):
+            return str(s).replace("+", "plus")
+
+        chars = "<*~+>"
+
+        env = Environment(
+            autoescape=select_autoescape(
+                special_extensions={"star": star, "tilde": tilde, "plus": plus}
+            ),
+            loader=DictLoader(
+                {
+                    "main.star": "{% block body %}{{ foo }};{% endblock %}",
+                    "inc.star": "{% extends 'main.star' %}"
+                    "{% block body %}{{ super() }}{{ foo }};{% endblock %}",
+                    "inc.tilde": "{% extends 'main.star' %}"
+                    "{% block body %}{{ super() }}{{ foo }};{% endblock %}",
+                }
+            ),
+        )
+        # First test simple stuff
+        t = env.get_template("main.star")
+        assert t.render(foo=chars) == "<star~+>;"
+        t = env.get_template("inc.star")
+        assert t.render(foo=chars) == "<star~+>;<star~+>;"
+        t = env.get_template("inc.tilde")
+        # This is not 100% what is expected but we documented it,
+        # see also command below
+        # In general the behavior is not bad so I don't consider
+        # it a failed test.
+        assert t.render(foo=chars) == "<*tilde+>;<*tilde+>;"
+
+    def test_mixed_files_extends_with_macro(self):
+        def star(s):
+            return str(s).replace("*", "star")
+
+        def tilde(s):
+            return str(s).replace("~", "tilde")
+
+        def plus(s):
+            return str(s).replace("+", "plus")
+
+        chars = "<*~+>"
+
+        env = Environment(
+            autoescape=select_autoescape(
+                special_extensions={"star": star, "tilde": tilde, "plus": plus}
+            ),
+            loader=DictLoader(
+                {
+                    "macro.star": "{% macro bar() -%}bar{{ foo }}{%- endmacro %}"
+                    "{% block body %}{{ foo }};{{ bar() }}{% endblock %}",
+                    "inc.plus": "{% extends 'macro.star' %}"
+                    "{% block body %}"
+                    "{{ super() }}{{ foo }};{{ bar () }}"
+                    "{% endblock %}",
+                }
+            ),
+        )
+        # First test simple stuff
+        t = env.get_template("macro.star")
+        assert t.render(foo=chars) == "<star~+>;bar<star~+>"
+        t = env.get_template("inc.plus")
+        # Again not 100% what was expected but we documented it
+        # If you can fix it, that the correct escape functions are used,
+        # dont forget to adopt the documentaion
+        assert t.render(foo=chars) == "<*~plus>;bar<*~plus><*~plus>;bar<*~plus>"
+
+    def test_mixed_files_extends_with_macro_only_bool(self):
+        chars = "<*~+>"
+
+        loader = DictLoader(
+            {
+                "macro.star": "{% macro bar() -%}bar{{ foo }}{%- endmacro %}"
+                "{% block body %}{{ foo }};{{ bar() }}{% endblock %}",
+                "inc.plus": "{% extends 'macro.star' %}"
+                "{% block body %}"
+                "{{ super() }}{{ foo }};{{ bar () }}"
+                "{% endblock %}",
+            }
+        )
+
+        env = Environment(
+            autoescape=select_autoescape(
+                enabled_extensions=["star"], disabled_extensions=["plus"]
+            ),
+            loader=loader,
+        )
+        # First test simple stuff
+        t = env.get_template("macro.star")
+        assert t.render(foo=chars) == "&lt;*~+&gt;;bar&lt;*~+&gt;"
+        t = env.get_template("inc.plus")
+        # works as expected
+        assert (
+            t.render(foo=chars)
+            == "&lt;*~+&gt;;bar&amp;lt;*~+&amp;gt;<*~+>;bar&lt;*~+&gt;"
+        )
+
+        # now invert the settings
+        env = Environment(
+            autoescape=select_autoescape(
+                enabled_extensions=["plus"], disabled_extensions=["star"]
+            ),
+            loader=loader,
+        )
+
+        # First test simple stuff
+        t = env.get_template("macro.star")
+        assert t.render(foo=chars) == "<*~+>;bar<*~+>"
+        t = env.get_template("inc.plus")
+        # works as expected -> this issue is in the context with the custom escapes
+        assert t.render(foo=chars) == "<*~+>;bar<*~+>&lt;*~+&gt;;bar<*~+>"

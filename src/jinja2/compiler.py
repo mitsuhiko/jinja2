@@ -627,6 +627,14 @@ class CodeGenerator(NodeVisitor):
         """
         self.writeline("resolve = context.resolve_or_missing")
         self.writeline("undefined = environment.undefined")
+        # make sure in the root render function the correct escape is used
+        self.writeline("escape = context.eval_ctx.get_escape_function()")
+        # make sure in the root render function the coorect Markup
+        # class ise used
+        self.writeline("Markup = context.eval_ctx.mark_safe")
+        # Custom Wrappers have a differnt naming
+        # so we also need to provide this
+        self.writeline("MarkupWrapper = context.eval_ctx.mark_safe")
         # always use the standard Undefined class for the implicit else of
         # conditional expressions
         self.writeline("cond_expr_undefined = Undefined")
@@ -773,14 +781,6 @@ class CodeGenerator(NodeVisitor):
             f"{self.func('root')}(context, missing=missing{envenv}):", extra=1
         )
         self.indent()
-        # make sure in the root render function the correct escape is used
-        self.writeline("escape = context.eval_ctx.get_escape_function()")
-        # make sure in the root render function the coorect Markup
-        # class ise used
-        self.writeline("Markup = context.eval_ctx.mark_safe")
-        # Custom Wrappers have a differnt naming
-        # so we also need to provide this
-        self.writeline("MarkupWrapper = context.eval_ctx.mark_safe")
         self.write_commons()
         # process the root
         frame = Frame(eval_ctx)
