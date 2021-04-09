@@ -274,8 +274,9 @@ i.e. if you work with LaTeX files
 (see description of :func:`~jinja.select_autoescape` above for example).
 
 To use your own custom escape function for one template extension
-(i.e. *.tex) you have to make sure that calling
-``autoescape(<your_template>)`` returns the desired custom escape function.
+(i.e. ``*.tex``) you have to make sure that calling
+``autoescape(<your_template>)`` returns
+the desired custom escape function.
 For instance if you are fan of peace in the world::
 
     def escape_to_peace(s):
