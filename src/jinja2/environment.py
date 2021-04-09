@@ -214,19 +214,19 @@ class Environment:
             As of Jinja 3.0 the autoescape can be even smarter.
             If the given function does not return a boolean but a
             function again, this function is considered to be the
-            escape function that shall be used. So you can used the
-            same enviroment to autoescape LaTeX and HTML files.
+            escape function that shall be used. So you can use the
+            same environment to autoescape LaTeX and HTML files.
 
             Use this with care.
             Not all functions within Jinja get the context
             that is required to determine the correct escape function.
-            If you run in troubles simply use different environments
+            If you run in trouble simply use different environments
             with custom ``default_escape`` (see below) for
             each file type.
 
             .. versionchanged:: 3.0
-                if `autoescape` function returns not True or False but a Callable
-                this is assumed to be a custom escape function
+                if the `autoescape` function doesn't return True or False but a
+                callable, it is assumed to be a custom escape function
 
             .. versionchanged:: 2.4
                `autoescape` can now be a function
@@ -412,7 +412,7 @@ class Environment:
         Get the correct :class:`Markup` for the given template name.
 
         Use this instead of the default :class:`Markup` to mark a string as
-        safe, especially when using custom escpaing.
+        safe, especially when using custom escaping.
 
         See :ref:`autoescaping` for an usage example.
 

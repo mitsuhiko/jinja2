@@ -598,11 +598,11 @@ def select_autoescape(
     If nothing matches then the initial value of autoescaping is set to the
     value of `default`.
 
-    The `special_extensions` is a dictionary whose keys are the extensions
+    The `special_extensions` is a dictionary which keys are the extensions
     to be considered and the values are the escape function to be used
     to escape this kind of files.
 
-    I.e. if you use the `latex package <https://pypi.org/project/latex/>`_
+    I.e. if you use the `latex package <https://pypi.org/project/latex/>`_,
     you can create an environment that escapes all LaTeX files
     with the correct escaper but still handle HTML files correctly::
 
@@ -703,7 +703,7 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
     Use a simple escape function to generate a wrapped Markup class
 
     This class uses the given ``custom_escape`` function to escape
-    the value andat the same time makes sure that no already escaped
+    the value and at the same time makes sure that no already escaped
     string is escaped again.
 
     The returned class is a subclass of :class:`markupsafe.Markup`,
@@ -737,8 +737,8 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
 
             If the object has an ``__html__`` method, it is called
             and the return value is assumed to already be safe for HTML
-            / resp what ever is escaped currently.
-            The HTML Attribue shall be understood simply as
+            / resp. what ever is escaped currently.
+            The HTML attribute shall be understood simply as
                 "it is a safe string"
             """
             if hasattr(s, "__html__"):

@@ -68,7 +68,7 @@ class EvalContext:
     .. versionchanged:: 3.0
 
     - Added ``get_escape_function`` and ``mark_safe`` functions
-    - allow autoescaped to be not only boolean but also an
+    - allow autoescape to be not only boolean but also an
       escape function
     """
 

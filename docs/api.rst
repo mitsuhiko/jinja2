@@ -270,7 +270,7 @@ the `autoescape` block (see :ref:`autoescape-overrides`).
 
 Note that :func:`~jinja2.select_autoescape` offers also a parameter
 `special_extensions` that allows you to define a custom escape function,
-i.e. if you handling LaTeX files
+i.e. if you work with LaTeX files
 (see description of :func:`~jinja.select_autoescape` above for example).
 
 To use your own custom escape function for one template extension
@@ -316,7 +316,7 @@ instead of direct :class:`Markup` calls::
 
 .. admonition:: A word of caution
 
-    Be aware that mixing files that using different custom escape
+    Be aware that mixing files that use different custom escape
     functions set by autoescape within of one render command,
     can lead to unexpected behavior.
     In general the ``{% include %}`` directive works fine but especially
@@ -696,8 +696,8 @@ functions to a Jinja environment.
 
 .. admonition:: Attention
 
-    Especially when using custom escape function do not use the
-    :class:`Markup` directly to mark string as safe or to escape it.
+    Especially when using a custom escape function do not use the
+    :class:`Markup` directly to mark a string as safe or to escape it.
     Instead use :meth:`Environment.get_markup_class` to get the
     correct class.
     Usage ``Markup = get_markup_class("mytemplate.ext")``
@@ -706,7 +706,7 @@ functions to a Jinja environment.
 This is required as the :class:`Markup` class implements calls for its
 ``Markup.escape`` method i.e. when using the ``join`` or
 the modulo ``%`` operator.
-So it is important that correct :class:`Markup` subclass is used
+So it is important that the correct :class:`Markup` subclass is used
 when using custom escaping defined by the :ref:`autoescaping` settings.
 
 The correct Markup class from a custom escape function is generated

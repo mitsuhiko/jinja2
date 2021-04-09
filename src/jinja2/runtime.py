@@ -629,7 +629,7 @@ class Macro:
 
         if args and isinstance(args[0], EvalContext):
             autoescape = args[0].autoescape
-            # If the eval contex is available we use it to determine
+            # If the eval context is available we use it to determine
             # the correct mark safe method
             # otherwise mark safe is already set in the __init__
             # function from enviromental context

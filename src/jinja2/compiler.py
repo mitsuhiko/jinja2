@@ -65,7 +65,7 @@ def has_safe_repr(value):
         return True
 
     if isinstance(value, Markup):
-        # If a custom Markup Class is used,
+        # If a custom Markup class is used,
         # the value is a subclass of Markup
         return True
 
@@ -629,10 +629,10 @@ class CodeGenerator(NodeVisitor):
         self.writeline("undefined = environment.undefined")
         # make sure in the root render function the correct escape is used
         self.writeline("escape = context.eval_ctx.get_escape_function()")
-        # make sure in the root render function the coorect Markup
-        # class ise used
+        # make sure in the root render function the correct Markup
+        # class is used
         self.writeline("Markup = context.eval_ctx.mark_safe")
-        # Custom Wrappers have a differnt naming
+        # Custom Wrappers have a different naming
         # so we also need to provide this
         self.writeline("MarkupWrapper = context.eval_ctx.mark_safe")
         # always use the standard Undefined class for the implicit else of

@@ -255,7 +255,7 @@ def do_replace(
         s = soft_str(s)  # type: ignore
 
     # Special case, if user uses Markup class directly to mark
-    # somethin as safe but uses custom escape function
+    # something as safe but uses custom escape function
     if (
         hasattr(s, "__html__")
         and s.__class__ != eval_ctx.mark_safe("").__class__ != s.__class__
@@ -302,7 +302,7 @@ def do_xmlattr(
     As you can see it automatically prepends a space in front of the item
     if the filter returned something unless the second parameter is false.
     """
-    # even so we assume that the user want the HTML escape here
+    # even when we assume that the user wants the HTML escape here
     # we give them the chance to use a custum function to escape
     # even more
     escape = eval_ctx.get_escape_function()
@@ -318,7 +318,7 @@ def do_xmlattr(
     if eval_ctx.autoescape:
         # We don't assume that using this filter we will use a custom
         # escape function. But for the sake of completeness we use
-        # the custom mark safe funtion from the eval context here as
+        # the custom mark safe function from the eval context here as
         # well
         rv = eval_ctx.mark_safe(rv)
 
@@ -836,13 +836,13 @@ def do_indent(
     if hasattr(s, "__html__"):
         indention = eval_ctx.mark_safe(indention)
         newline = eval_ctx.mark_safe(newline)
-        # Make sure the correct MarkupClass is used
+        # Make sure the correct Markup class is used
         s = t.cast("HasHTML", s)
         s = eval_ctx.mark_safe(s.__html__())
 
     s += newline  # this quirk is necessary for splitlines method
 
-    # Markup is a subclass of string, so lets just assume it is a string
+    # Markup is a subclass of string, so let's just assume it is a string
     s = t.cast(str, s)
     if blank:
         rv = (newline + indention).join(s.splitlines())
