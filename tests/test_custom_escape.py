@@ -220,8 +220,8 @@ class TestCustomAutoescape:
         assert t.render(foo=chars) == "<star~+>;bar<star~+>"
         t = env.get_template("inc.plus")
         # Again not 100% what was expected but we documented it
-        # If you can fix it, that the correct escape functions are used,
-        # dont forget to adopt the documentaion
+        # If you can fix it so that the correct escape functions are used,
+        # don't forget to update the documentation
         assert t.render(foo=chars) == "<*~plus>;bar<*~plus><*~plus>;bar<*~plus>"
 
     def test_mixed_files_extends_with_macro_only_bool(self):

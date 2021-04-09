@@ -102,7 +102,7 @@ class TestSandbox:
         escaped_out = "$<p>Hello <€€foo€€>!</p>$"
         assert t.render() == escaped_out
         # Make sure that the same Markup class is used everywhere
-        # somehow even different instances of the escape class are use
+        # somehow even different instances of the escape class are used
         # therefore we compare only the names
         assert (
             t.module.__html__().__class__.get_unwrapped_escape().__name__

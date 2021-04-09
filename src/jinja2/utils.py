@@ -752,7 +752,7 @@ get_wrapped_escape_class
 
 
 class Cycler:
-    """Cycle through values by yield them one at a time, then restarting
+    """Cycle through values by yielding them one at a time, then restarting
     once the end is reached. Available as ``cycler`` in templates.
 
     Similar to ``loop.cycle``, but can be used outside loops or across
