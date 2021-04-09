@@ -82,7 +82,7 @@ useful if you want to dig deeper into Jinja or :ref:`develop extensions
 .. autoclass:: Environment([options])
     :members: from_string, get_template, select_template,
               get_or_select_template, join_path, extend, compile_expression,
-              compile_templates, list_templates, add_extension
+              compile_templates, list_templates, add_extension, get_markup_class
 
     .. attribute:: shared
 
@@ -295,14 +295,37 @@ the world::
 Note that for `.world` files the `{{ var|e }}` and `{{ var | escape }}`
 filters are replaced with the custom escape function.
 
+To mark a string as safe please use the :meth:`Environment.get_markup_class`
+instead of direct :class:`Markup` calls::
+
+
+    template = env.get_template("message_to_the.world")
+    # the content of the template is simply assumed to by
+    """
+    <h1>My Message to the world<h1>
+    {{ my_msg }}
+    I was replied with {{ reply }}
+    """
+    # We know that everything that ends on world will use the special
+    mark_safe = env.get_markup_class(".world")
+    my_msg = mark_safe("Make love not war!")
+    reply = "We want war!"
+    template.render(my_msg=my_msg, reply=reply)
+
+
 .. admonition:: A word of caution
 
-    Be aware that mixing files that have different
-    autoescape settings (especially custom escape functions) within
-    one render command, can lead to unexpected behavior.
+    Be aware that mixing files that using different custom escape
+    functions set by autoescape within of one render command,
+    can lead to unexpected behavior.
     In general the ``{% include %}`` directive works fine but especially
     ``{% extends %}`` commands can have unexpected outcomes as main template
     overwrites the context of the included one.
+
+    If possible use the ``default_escape`` of the :class:`~jinja2.Environment`
+    to define the mainly used escape function and Markup class and use
+    different environments for different file types, if you have to
+    mix files with conflicting extensions using ``{% extends %}``.
 
 
 .. _identifier-naming:
@@ -670,12 +693,27 @@ functions to a Jinja environment.
     Genshi.  It's expected that more template engines and framework will pick
     up the `__html__` concept soon.
 
-As the :class:`Markup` class implements calls for its
+.. admonition:: Attention
+
+    Especially when using custom escape function do not use the
+    :class:`Markup` directly to mark string as safe or to escape it.
+    Instead use :meth:`Environment.get_markup_class` to get the
+    correct class.
+    Usage ``Markup = get_markup_class("mytemplate.ext")``
+
+
+This is required as the :class:`Markup` class implements calls for its
 ``Markup.escape`` method i.e. when using the ``join`` or
-the modulo ``%`` operator it is
-important that correct :class:`Markup` subclass is used when using
-custom escaping defined by the :ref:`autoescaping` settings.
-To guarantee this, the following function is used internally.
+the modulo ``%`` operator.
+So it is important that correct :class:`Markup` subclass is used
+when using custom escaping defined by the :ref:`autoescaping` settings.
+
+The correct Markup class from a custom escape function is generated
+using the helper class:
+
+..
+    comment:: Somehow using the lru_cache wrapper the autodoc does not get the correct parameters
+              See also https://github.com/sphinx-doc/sphinx/issues/7650
 
 .. autofunction:: jinja2.utils.get_wrapped_escape_class
 

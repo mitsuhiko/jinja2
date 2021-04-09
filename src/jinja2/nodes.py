@@ -12,8 +12,6 @@ from typing import Type
 
 from markupsafe import Markup
 
-from jinja2.utils import get_wrapped_escape_class
-
 _binop_to_func = {
     "*": operator.mul,
     "/": operator.truediv,
@@ -76,19 +74,18 @@ class EvalContext:
 
     def __init__(self, environment, template_name=None):
         self.environment = environment
+
         if callable(environment.autoescape):
-            self.autoescape = environment.autoescape(template_name)
+            self.autoescape = bool(environment.autoescape(template_name))
         else:
-            self.autoescape = environment.autoescape
+            self.autoescape = bool(environment.autoescape)
         self.volatile = False
 
-        # We need to save escape function as autoescape can be
+        # We need to keep  Markup Class if existing as autoescape can be
         # overwritten by {% autoescape %} environment.
-        self._markup_class: Type["Markup"]
-        if callable(self.autoescape):
-            self._markup_class = get_wrapped_escape_class(self.autoescape)
-        else:
-            self._markup_class = self.environment.default_markup_class
+        self._markup_class: Type["Markup"] = self.environment.get_markup_class(
+            template_name
+        )
 
     def get_escape_function(self) -> Callable[[Any], "Markup"]:
         """

@@ -135,6 +135,13 @@ class TestHelpers:
         assert func("FOO.HTML")
         assert not func("FOO.TXT")
 
+        # Also test with only extensions
+        assert func(".html")
+        assert func(".htm")
+        assert not func(".txt")
+        assert func(".HTML")
+        assert not func(".TXT")
+
     def test_autoescape_select_special(self):
         def foobar(s):
             return s.replace("foo", "bar")
@@ -162,6 +169,11 @@ class TestHelpers:
         assert func("FOO.LA.TEX").__name__ == barfoo.__name__
         assert func("FOO.TEX").__name__ == foobar.__name__
         assert func("FOO.NETEX") == "NONE"
+
+        # Also test with only extensions
+        assert func(".LA.TEX").__name__ == barfoo.__name__
+        assert func(".TEX").__name__ == foobar.__name__
+        assert func(".NETEX") == "NONE"
 
 
 class TestEscapeUrlizeTarget:

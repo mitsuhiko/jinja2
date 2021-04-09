@@ -313,6 +313,7 @@ class Environment:
     context_class = Context
 
     template_class: t.Type["Template"]
+    default_markup_class: t.Type["Markup"]
 
     def __init__(
         self,
@@ -403,6 +404,27 @@ class Environment:
             from . import asyncsupport  # noqa: F401
 
         _environment_sanity_check(self)
+
+    def get_markup_class(
+        self, template_name: t.Optional[str] = None
+    ) -> t.Type["Markup"]:
+        """
+        Get the correct :class:`Markup` for the given template name.
+
+        Use this instead of the default :class:`Markup` to mark a string as
+        safe, especially when using custom escpaing.
+
+        See :ref:`autoescaping` for an usage example.
+
+        :param template_name: the name of the template that is checked
+                              for special escpaing in the autoescape
+                              settings
+
+        .. versionadded:: 3.0
+        """
+        if callable(self.autoescape) and callable(self.autoescape(template_name)):
+            return get_wrapped_escape_class(self.autoescape(template_name))
+        return self.default_markup_class
 
     def add_extension(self, extension):
         """Adds an extension after the environment was created.
