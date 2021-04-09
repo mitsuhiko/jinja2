@@ -273,8 +273,8 @@ Note that :func:`~jinja2.select_autoescape` offers also a parameter
 i.e. if you handling LaTeX files
 (see description of :func:`~jinja.select_autoescape` above for example).
 
-To use your own custom escape function for one template extension 
-(i.e. *.tex) you have to make sure that calling 
+To use your own custom escape function for one template extension
+(i.e. *.tex) you have to make sure that calling
 ``autoescape(<your_template>)`` returns the desired custom escape function.
 For instance if you are fan of peace in the world::
 
