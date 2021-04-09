@@ -316,9 +316,9 @@ def do_xmlattr(
         rv = " " + rv
 
     if eval_ctx.autoescape:
-        # We don't assume that using this filter we will use a custom
-        # escape function. But for the sake of completeness we use
-        # the custom mark safe function from the eval context here as
+        # We don't assume that a user using this function wants to use
+        # a custom escape function. But for the sake of completeness we
+        # use the custom mark safe function from the eval context here as
         # well
         rv = eval_ctx.mark_safe(rv)
 
