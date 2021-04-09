@@ -273,9 +273,10 @@ Note that :func:`~jinja2.select_autoescape` offers also a parameter
 i.e. if you handling LaTeX files
 (see description of :func:`~jinja.select_autoescape` above for example).
 
-To write your own custom escape function simply return it for the
-wanted template extension. For instance if you are fan of peace in
-the world::
+To use your own custom escape function for one template extension 
+(i.e. *.tex) you have to make sure that calling 
+``autoescape(<your_template>)`` returns the desired custom escape function.
+For instance if you are fan of peace in the world::
 
     def escape_to_peace(s):
         """
@@ -284,7 +285,7 @@ the world::
         preventing multiple escapes and marking the string as safe
         is done by Jinja itself.
         """
-        s.replace("war", "peace")
+        return s.replace("war", "peace")
 
     env = Environment(
         autoescape=select_autoescape(special_extensions={".world": escape_to_peace}),
@@ -292,7 +293,7 @@ the world::
     )
 
 
-Note that for `.world` files the `{{ var|e }}` and `{{ var | escape }}`
+Note that for ``.world`` files the ``{{ var|e }}`` and ``{{ var | escape }}``
 filters are replaced with the custom escape function.
 
 To mark a string as safe please use the :meth:`Environment.get_markup_class`
@@ -302,7 +303,7 @@ instead of direct :class:`Markup` calls::
     template = env.get_template("message_to_the.world")
     # the content of the template is simply assumed to by
     """
-    <h1>My Message to the world<h1>
+    <h1>My Message to the world</h1>
     {{ my_msg }}
     I was replied with {{ reply }}
     """
