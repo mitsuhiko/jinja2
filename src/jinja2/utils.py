@@ -748,9 +748,6 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
     return MarkupWrapper
 
 
-get_wrapped_escape_class
-
-
 class Cycler:
     """Cycle through values by yielding them one at a time, then restarting
     once the end is reached. Available as ``cycler`` in templates.
