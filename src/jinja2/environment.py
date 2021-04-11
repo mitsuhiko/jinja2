@@ -964,7 +964,7 @@ class Environment:
         :param parent: the name or names of the templates that
         :param caller: the name of the function the
 
-        :raises TemplateConfigurationError
+        :raise: TemplateConfigurationError
         """
         # Currently we check only for extends and mixed auto escape,
         # so we can exit early
