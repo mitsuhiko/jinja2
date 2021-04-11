@@ -150,6 +150,52 @@ class TestCustomAutoescape:
             t.render(foo=chars) == "<star~+>;<*tilde+>;&lt;*~+&gt;;<*~+>;<*~plus>;;;;"
         )
 
+    def test_mixed_files_include_plus_extend_with_block(self):
+        def star(s):
+            return str(s).replace("*", "star")
+
+        def tilde(s):
+            return str(s).replace("~", "tilde")
+
+        def plus(s):
+            return str(s).replace("+", "plus")
+
+        chars = "<*~+>"
+
+        env = Environment(
+            autoescape=select_autoescape(
+                special_extensions={"star": star, "tilde": tilde, "plus": plus},
+                enabled_extensions=["htm", "html"],
+                disabled_extensions=["txt"],
+            ),
+            loader=DictLoader(
+                {
+                    "main.star": "StarMain{{ foo }};{% include 'inc.tilde' %};",
+                    "inc.plus": (
+                        "PlusMain{{ foo }};"
+                        "{% block body %}"
+                        "PlusBody{{ foo }};"
+                        "{% endblock %}"
+                    ),
+                    "inc.tilde": (
+                        "{% extends 'inc.plus' %}"
+                        "TildeMain{{ foo }};"
+                        "{% block body %}"
+                        "MainBody{{ foo }};"
+                        "{{ super() }}"
+                        "{% endblock %}"
+                    ),
+                }
+            ),
+        )
+        t = env.get_template("main.star")
+        assert t.render(foo=chars) == (
+            "StarMain<star~+>;"
+            "PlusMain<*tilde+>;"
+            "MainBody<*tilde+>;"
+            "PlusBody<*tilde+>;;"
+        )
+
     def test_mixed_files_extend(self):
         def star(s):
             return str(s).replace("*", "star")
