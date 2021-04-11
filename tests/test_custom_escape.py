@@ -80,10 +80,10 @@ class TestCustomAutoescape:
         assert t.render(foo="100$") == "100$"
 
     @pytest.mark.parametrize(
-        "escaper", [custom_escape, get_wrapped_escape_class(custom_escape)]
+        "escape_function", [custom_escape, get_wrapped_escape_class(custom_escape)]
     )
-    def test_custom_markup_environment_manual_escape(self, escaper):
-        env = Environment(default_escape=escaper)
+    def test_custom_markup_environment_manual_escape(self, escape_function):
+        env = Environment(default_escape=escape_function)
         t = env.from_string("{{ foo|e }}")
         assert t.render(foo="100$") == "100€"
         t = env.from_string("{{ foo|escape }}")
@@ -92,6 +92,11 @@ class TestCustomAutoescape:
         assert t.render(foo="100$") == "100$"
         t = env.from_string("{{ foo|safe|escape }}")
         assert t.render(foo="100$") == "100$"
+
+    """
+    Test notes
+    - also test from render.from_string()
+    """
 
     def test_mixed_files_include(self):
         def star(s):
@@ -187,8 +192,13 @@ class TestCustomAutoescape:
                     ),
                 }
             ),
+            allow_mixed_escape_extends=True,
         )
         t = env.get_template("main.star")
+        # This is not 100% what is expected, that is why we throw an
+        # exception by default. We documented this behavior, so even
+        # you can fix it, changing it should be considered a breaking
+        # change
         assert t.render(foo=chars) == (
             "StarMain<star~+>;"
             "PlusMain<*tilde+>;"
@@ -221,6 +231,7 @@ class TestCustomAutoescape:
                     "{% block body %}{{ super() }}{{ foo }};{% endblock %}",
                 }
             ),
+            allow_mixed_escape_extends=True,
         )
         # First test simple stuff
         t = env.get_template("main.star")
@@ -228,10 +239,10 @@ class TestCustomAutoescape:
         t = env.get_template("inc.star")
         assert t.render(foo=chars) == "<star~+>;<star~+>;"
         t = env.get_template("inc.tilde")
-        # This is not 100% what is expected but we documented it,
-        # see also command below
-        # In general the behavior is not bad so I don't consider
-        # it a failed test.
+        # This is not 100% what is expected, that is why we throw an
+        # exception by default. We documented this behavior, so even
+        # you can fix it, changing it should be considered a breaking
+        # change
         assert t.render(foo=chars) == "<*tilde+>;<*tilde+>;"
 
     def test_mixed_files_extends_with_macro(self):
@@ -260,14 +271,16 @@ class TestCustomAutoescape:
                     "{% endblock %}",
                 }
             ),
+            allow_mixed_escape_extends=True,
         )
         # First test simple stuff
         t = env.get_template("macro.star")
         assert t.render(foo=chars) == "<star~+>;bar<star~+>"
         t = env.get_template("inc.plus")
-        # Again not 100% what was expected but we documented it
-        # If you can fix it so that the correct escape functions are used,
-        # don't forget to update the documentation
+        # This is not 100% what is expected, that is why we throw an
+        # exception by default. We documented this behavior, so even
+        # you can fix it, changing it should be considered a breaking
+        # change
         assert t.render(foo=chars) == "<*~plus>;bar<*~plus><*~plus>;bar<*~plus>"
 
     def test_mixed_files_extends_with_macro_only_bool(self):

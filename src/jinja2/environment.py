@@ -32,6 +32,7 @@ from .defaults import NEWLINE_SEQUENCE
 from .defaults import TRIM_BLOCKS
 from .defaults import VARIABLE_END_STRING
 from .defaults import VARIABLE_START_STRING
+from .exceptions import TemplateError
 from .exceptions import TemplateNotFound
 from .exceptions import TemplateRuntimeError
 from .exceptions import TemplatesNotFound
@@ -224,12 +225,27 @@ class Environment:
             with custom ``default_escape`` (see below) for
             each file type.
 
+            See :ref:`autoescaping` for details.
+
             .. versionchanged:: 3.0
                 if the `autoescape` function doesn't return True or False but a
                 callable, it is assumed to be a custom escape function
 
             .. versionchanged:: 2.4
                `autoescape` can now be a function
+
+        `allow_mixed_escape_extends`
+            Allow that templates that extend each other can have different
+            escape functions / Markup classes.
+
+            Note still only the escape function from the most parent
+            template will be used!
+
+            See :ref:`autoescaping` for details.
+
+            Defaults to False
+
+            .. versionadded:: 3.0
 
         `default_escape`
             define a custom escape function or class.
@@ -340,6 +356,7 @@ class Environment:
         bytecode_cache=None,
         enable_async=False,
         default_escape=html_escape,
+        allow_mixed_escape_extends=False,
     ):
         # !!Important notice!!
         #   The constructor accepts quite a few arguments that should be
@@ -379,7 +396,7 @@ class Environment:
             self.default_markup_class = get_wrapped_escape_class(self.autoescape(None))
         else:
             self.default_markup_class = Markup
-
+        self._allow_mixed_escape_extends: bool = allow_mixed_escape_extends
         # defaults
         self.filters = DEFAULT_FILTERS.copy()
         self.tests = DEFAULT_TESTS.copy()
@@ -932,7 +949,62 @@ class Environment:
         return template
 
     @internalcode
-    def get_template(self, name, parent=None, globals=None):
+    def _check_multi_template_autoescape(
+        self,
+        name: t.Union[None, str, "Template"],
+        parent: t.Optional[str],
+        caller: t.Optional[str],
+    ) -> None:
+        """
+        Raise an Error if we expect different custom escape functions
+        or Markup classes used in a way that a user could get
+        unexpected results.
+
+        :param name: The name of first template if known
+        :param parent: the name or names of the templates that
+        :param caller: the name of the function the
+
+        :raises TemplateError
+        """
+        # Currently we check only for extends and mixed auto escape,
+        # so we can exit early
+        if self._allow_mixed_escape_extends or caller != "extends":
+            return
+
+        if isinstance(name, Template):
+            name = None
+        elif not isinstance(name, str):
+            raise ValueError(
+                f"Parameter name is not Template nor string. "
+                f"Given was '{name}' (Type: {type(name)})."
+            )
+        base_class = self.get_markup_class(name)
+        parent_class = self.get_markup_class(parent)
+
+        # The Simplest case it is exactly the same class
+        # We do not check for subclasses because a subclass could have
+        # altered the escape behavior already
+        if base_class == parent_class:
+            return
+
+        # The dynamic nature of get_wrapped_escape_class does not allow
+        # for direct compares, so we need to compare the uid
+        if (
+            hasattr(base_class, "get_class_uid")
+            and hasattr(parent_class, "get_class_uid")
+            and base_class.get_class_uid == parent_class.get_class_uid  # type: ignore
+        ):
+            return
+
+        # Okay nothing matched so far, we hit a dead end
+        raise TemplateError(
+            "You tried to extend a template with a different escape "
+            "function or Markup class as the base template. This has to be enabled"
+            "explicitly using Environment(allow_mixed_escape_extends=True)."
+        )
+
+    @internalcode
+    def get_template(self, name, parent=None, globals=None, caller=None):
         """Load a template by name with :attr:`loader` and return a
         :class:`Template`. If the template does not exist a
         :exc:`TemplateNotFound` exception is raised.
@@ -945,6 +1017,14 @@ class Environment:
             these extra variables available for all renders of this
             template. If the template has already been loaded and
             cached, its globals are updated with any new items.
+        :param caller: t.Optional[str] Tells get template which
+            function was calling it, i.e. 'extends' or 'include'.
+            Required to define behavior for custom autoescape.
+
+        .. versionchanged:: 3.0
+            Added caller parameter and a check if we need to raise an
+            error due to usage different autoescape function within
+            extends
 
         .. versionchanged:: 3.0
             If a template is loaded from cache, ``globals`` will update
@@ -954,6 +1034,7 @@ class Environment:
             If ``name`` is a :class:`Template` object it is returned
             unchanged.
         """
+        self._check_multi_template_autoescape(name, parent, caller)
         if isinstance(name, Template):
             return name
         if parent is not None:
@@ -962,7 +1043,7 @@ class Environment:
         return self._load_template(name, globals)
 
     @internalcode
-    def select_template(self, names, parent=None, globals=None):
+    def select_template(self, names, parent=None, globals=None, caller=None):
         """Like :meth:`get_template`, but tries loading multiple names.
         If none of the names can be loaded a :exc:`TemplatesNotFound`
         exception is raised.
@@ -975,6 +1056,12 @@ class Environment:
             these extra variables available for all renders of this
             template. If the template has already been loaded and
             cached, its globals are updated with any new items.
+        :param caller: t.Optional[str] Tells get template which
+            function was calling it, i.e. 'extends' or 'include'.
+            Required to define behavior for custom autoescape.
+
+        .. versionchanged:: 3.0
+            Added caller parameter
 
         .. versionchanged:: 3.0
             If a template is loaded from cache, ``globals`` will update
@@ -991,6 +1078,7 @@ class Environment:
 
         .. versionadded:: 2.3
         """
+        parent_template = parent
         if isinstance(names, Undefined):
             names._fail_with_undefined_error()
 
@@ -1001,27 +1089,50 @@ class Environment:
 
         for name in names:
             if isinstance(name, Template):
+                self._check_multi_template_autoescape(names, parent_template, caller)
                 return name
             if parent is not None:
                 name = self.join_path(name, parent)
             try:
-                return self._load_template(name, globals)
+                template = self._load_template(name, globals)
+                # Only check autoescape if template can be loaded
+                self._check_multi_template_autoescape(names, parent_template, caller)
+                return template
             except (TemplateNotFound, UndefinedError):
                 pass
         raise TemplatesNotFound(names)
 
     @internalcode
-    def get_or_select_template(self, template_name_or_list, parent=None, globals=None):
+    def get_or_select_template(
+        self, template_name_or_list, parent=None, globals=None, caller=None
+    ):
         """Use :meth:`select_template` if an iterable of template names
         is given, or :meth:`get_template` if one name is given.
+
+        :param template_name_or_list: List of template names to
+            try loading in order or Name of the template to load.
+        :param parent: The name of the parent template importing this
+            template. :meth:`join_path` can be used to implement name
+            transformations with this.
+        :param globals: Extend the environment :attr:`globals` with
+            these extra variables available for all renders of this
+            template. If the template has already been loaded and
+            cached, its globals are updated with any new items.
+        :param caller: t.Optional[str] Tells get template which
+            function was calling it, i.e. 'extends' or 'include'.
+            Required to define behavior for custom autoescape.
+
+        .. versionchanged:: 3.0
+            Added caller parameter
 
         .. versionadded:: 2.3
         """
         if isinstance(template_name_or_list, (str, Undefined)):
-            return self.get_template(template_name_or_list, parent, globals)
+            return self.get_template(template_name_or_list, parent, globals, caller)
         elif isinstance(template_name_or_list, Template):
+            self._check_multi_template_autoescape(template_name_or_list, parent, caller)
             return template_name_or_list
-        return self.select_template(template_name_or_list, parent, globals)
+        return self.select_template(template_name_or_list, parent, globals, caller)
 
     def from_string(self, source, globals=None, template_class=None):
         """Load a template from a source string without using

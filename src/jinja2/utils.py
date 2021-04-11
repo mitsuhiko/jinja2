@@ -712,7 +712,7 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
 
     :param custom_escape: The function that escapes the objects to a str
 
-    :returns an Markup class using this escape function
+    :returns a Markup class using this escape function
 
     .. versionadded:: 3.0
     """
@@ -721,6 +721,14 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
         """
         Make sure that the custom escape function is used
         """
+
+        @classmethod
+        def get_class_uid(cls) -> int:
+            """
+            Due to dynamic nature of the class it is hard to compare it
+            therefore we need an uid
+            """
+            return hash(escape)
 
         @classmethod
         def get_unwrapped_escape(cls):
@@ -735,7 +743,7 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
             Also make sure the escaped string is marked as escaped
             with the correct class
 
-            If the object has an ``__html__`` method, it is called
+            If the object has an ``__html__`` method, it is called,
             and the return value is assumed to already be safe for HTML
             / resp. what ever is escaped currently.
             The HTML attribute shall be understood simply as

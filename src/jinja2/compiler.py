@@ -905,7 +905,7 @@ class CodeGenerator(NodeVisitor):
 
             # if we have a known extends we just add a template runtime
             # error into the generated code.  We could catch that at compile
-            # time too, but i welcome it not to confuse users by throwing the
+            # time too, but I welcome it not to confuse users by throwing the
             # same error at different times just "because we can".
             if not self.has_known_extends:
                 self.writeline("if parent_template is not None:")
@@ -921,7 +921,7 @@ class CodeGenerator(NodeVisitor):
 
         self.writeline("parent_template = environment.get_template(", node)
         self.visit(node.template, frame)
-        self.write(f", {self.name!r})")
+        self.write(f", {self.name!r}, caller='extends')")
         self.writeline("for name, parent_block in parent_template.blocks.items():")
         self.indent()
         self.writeline("context.blocks.setdefault(name, []).append(parent_block)")
@@ -953,7 +953,7 @@ class CodeGenerator(NodeVisitor):
 
         self.writeline(f"template = environment.{func_name}(", node)
         self.visit(node.template, frame)
-        self.write(f", {self.name!r})")
+        self.write(f", {self.name!r}, caller='include')")
         if node.ignore_missing:
             self.outdent()
             self.writeline("except TemplateNotFound:")
