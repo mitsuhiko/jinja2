@@ -32,7 +32,7 @@ from .defaults import NEWLINE_SEQUENCE
 from .defaults import TRIM_BLOCKS
 from .defaults import VARIABLE_END_STRING
 from .defaults import VARIABLE_START_STRING
-from .exceptions import TemplateError
+from .exceptions import TemplateConfigurationError
 from .exceptions import TemplateNotFound
 from .exceptions import TemplateRuntimeError
 from .exceptions import TemplatesNotFound
@@ -964,7 +964,7 @@ class Environment:
         :param parent: the name or names of the templates that
         :param caller: the name of the function the
 
-        :raises TemplateError
+        :raises TemplateConfigurationError
         """
         # Currently we check only for extends and mixed auto escape,
         # so we can exit early
@@ -997,7 +997,7 @@ class Environment:
             return
 
         # Okay nothing matched so far, we hit a dead end
-        raise TemplateError(
+        raise TemplateConfigurationError(
             "You tried to extend a template with a different escape "
             "function or Markup class as the base template. This has to be enabled"
             "explicitly using Environment(allow_mixed_escape_extends=True)."

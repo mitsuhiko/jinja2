@@ -3,11 +3,26 @@ import pytest
 from jinja2 import DictLoader
 from jinja2 import Environment
 from jinja2 import select_autoescape
+from jinja2.exceptions import TemplateConfigurationError
 from jinja2.utils import get_wrapped_escape_class
 
 
 def custom_escape(s):
     return str(s).replace("$", "€")
+
+
+@pytest.fixture()
+def escape_special_extensions():
+    def star(s):
+        return str(s).replace("*", "star")
+
+    def tilde(s):
+        return str(s).replace("~", "tilde")
+
+    def plus(s):
+        return str(s).replace("+", "plus")
+
+    return {"star": star, "tilde": tilde, "plus": plus}
 
 
 class TestCustomAutoescape:
@@ -93,26 +108,12 @@ class TestCustomAutoescape:
         t = env.from_string("{{ foo|safe|escape }}")
         assert t.render(foo="100$") == "100$"
 
-    """
-    Test notes
-    - also test from render.from_string()
-    """
-
-    def test_mixed_files_include(self):
-        def star(s):
-            return str(s).replace("*", "star")
-
-        def tilde(s):
-            return str(s).replace("~", "tilde")
-
-        def plus(s):
-            return str(s).replace("+", "plus")
-
+    def test_mixed_files_include(self, escape_special_extensions):
         chars = "<*~+>"
 
         env = Environment(
             autoescape=select_autoescape(
-                special_extensions={"star": star, "tilde": tilde, "plus": plus},
+                special_extensions=escape_special_extensions,
                 enabled_extensions=["htm", "html"],
                 disabled_extensions=["txt"],
             ),
@@ -155,21 +156,14 @@ class TestCustomAutoescape:
             t.render(foo=chars) == "<star~+>;<*tilde+>;&lt;*~+&gt;;<*~+>;<*~plus>;;;;"
         )
 
-    def test_mixed_files_include_plus_extend_with_block(self):
-        def star(s):
-            return str(s).replace("*", "star")
-
-        def tilde(s):
-            return str(s).replace("~", "tilde")
-
-        def plus(s):
-            return str(s).replace("+", "plus")
-
+    def test_mixed_files_include_plus_extend_with_block(
+        self, escape_special_extensions
+    ):
         chars = "<*~+>"
 
         env = Environment(
             autoescape=select_autoescape(
-                special_extensions={"star": star, "tilde": tilde, "plus": plus},
+                special_extensions=escape_special_extensions,
                 enabled_extensions=["htm", "html"],
                 disabled_extensions=["txt"],
             ),
@@ -206,22 +200,11 @@ class TestCustomAutoescape:
             "PlusBody<*tilde+>;;"
         )
 
-    def test_mixed_files_extend(self):
-        def star(s):
-            return str(s).replace("*", "star")
-
-        def tilde(s):
-            return str(s).replace("~", "tilde")
-
-        def plus(s):
-            return str(s).replace("+", "plus")
-
+    def test_mixed_files_extend(self, escape_special_extensions):
         chars = "<*~+>"
 
         env = Environment(
-            autoescape=select_autoescape(
-                special_extensions={"star": star, "tilde": tilde, "plus": plus}
-            ),
+            autoescape=select_autoescape(special_extensions=escape_special_extensions),
             loader=DictLoader(
                 {
                     "main.star": "{% block body %}{{ foo }};{% endblock %}",
@@ -236,8 +219,10 @@ class TestCustomAutoescape:
         # First test simple stuff
         t = env.get_template("main.star")
         assert t.render(foo=chars) == "<star~+>;"
+
         t = env.get_template("inc.star")
         assert t.render(foo=chars) == "<star~+>;<star~+>;"
+
         t = env.get_template("inc.tilde")
         # This is not 100% what is expected, that is why we throw an
         # exception by default. We documented this behavior, so even
@@ -245,30 +230,23 @@ class TestCustomAutoescape:
         # change
         assert t.render(foo=chars) == "<*tilde+>;<*tilde+>;"
 
-    def test_mixed_files_extends_with_macro(self):
-        def star(s):
-            return str(s).replace("*", "star")
-
-        def tilde(s):
-            return str(s).replace("~", "tilde")
-
-        def plus(s):
-            return str(s).replace("+", "plus")
-
+    def test_mixed_files_extends_with_macro(self, escape_special_extensions):
         chars = "<*~+>"
 
         env = Environment(
-            autoescape=select_autoescape(
-                special_extensions={"star": star, "tilde": tilde, "plus": plus}
-            ),
+            autoescape=select_autoescape(special_extensions=escape_special_extensions),
             loader=DictLoader(
                 {
-                    "macro.star": "{% macro bar() -%}bar{{ foo }}{%- endmacro %}"
-                    "{% block body %}{{ foo }};{{ bar() }}{% endblock %}",
-                    "inc.plus": "{% extends 'macro.star' %}"
-                    "{% block body %}"
-                    "{{ super() }}{{ foo }};{{ bar () }}"
-                    "{% endblock %}",
+                    "macro.star": (
+                        "{% macro bar() -%}bar{{ foo }}{%- endmacro %}"
+                        "{% block body %}{{ foo }};{{ bar() }}{% endblock %}"
+                    ),
+                    "inc.plus": (
+                        "{% extends 'macro.star' %}"
+                        "{% block body %}"
+                        "{{ super() }}{{ foo }};{{ bar () }}"
+                        "{% endblock %}"
+                    ),
                 }
             ),
             allow_mixed_escape_extends=True,
@@ -288,12 +266,16 @@ class TestCustomAutoescape:
 
         loader = DictLoader(
             {
-                "macro.star": "{% macro bar() -%}bar{{ foo }}{%- endmacro %}"
-                "{% block body %}{{ foo }};{{ bar() }}{% endblock %}",
-                "inc.plus": "{% extends 'macro.star' %}"
-                "{% block body %}"
-                "{{ super() }}{{ foo }};{{ bar () }}"
-                "{% endblock %}",
+                "macro.star": (
+                    "{% macro bar() -%}bar{{ foo }}{%- endmacro %}"
+                    "{% block body %}{{ foo }};{{ bar() }}{% endblock %}"
+                ),
+                "inc.plus": (
+                    "{% extends 'macro.star' %}"
+                    "{% block body %}"
+                    "{{ super() }}{{ foo }};{{ bar () }}"
+                    "{% endblock %}"
+                ),
             }
         )
 
@@ -327,3 +309,128 @@ class TestCustomAutoescape:
         t = env.get_template("inc.plus")
         # works as expected -> this issue is in the context with the custom escapes
         assert t.render(foo=chars) == "<*~+>;bar<*~+>&lt;*~+&gt;;bar<*~+>"
+
+    def test_raise_exception_mixed_files_extend(self, escape_special_extensions):
+        chars = "<*~+>"
+
+        templates = {
+            "main.star": "{% block body %}{{ foo }};{% endblock %}",
+            "inc.star": "{% extends 'main.star' %}"
+            "{% block body %}{{ super() }}{{ foo }};{% endblock %}",
+            "inc.tilde": "{% extends 'main.star' %}"
+            "{% block body %}{{ super() }}{{ foo }};{% endblock %}",
+        }
+
+        env = Environment(
+            autoescape=select_autoescape(special_extensions=escape_special_extensions),
+            loader=DictLoader(templates),
+        )
+        # First test simple stuff
+        t = env.get_template("main.star")
+        assert t.render(foo=chars) == "<star~+>;"
+
+        t = env.get_template("inc.star")
+        assert t.render(foo=chars) == "<star~+>;<star~+>;"
+
+        t = env.get_template("inc.tilde")
+        with pytest.raises(TemplateConfigurationError):
+            # Unfortunately the error is only risen once the template
+            # is rendered due to the dynamic nature of the extends
+            # and includes in the template
+            t.render(foo=chars)
+
+        # Now we test als with string render, note this has the default
+        # Markup escape, which is still different
+        t = env.from_string(templates["inc.tilde"])
+        with pytest.raises(TemplateConfigurationError):
+            # Unfortunately the error is only risen once the template
+            # is rendered due to the dynamic nature of the extends
+            # and includes in the template
+            t.render(foo=chars)
+
+    def test_raise_exception_mixed_files_include_plus_extend_with_block(
+        self, escape_special_extensions
+    ):
+        chars = "<*~+>"
+
+        env = Environment(
+            autoescape=select_autoescape(
+                special_extensions=escape_special_extensions,
+                enabled_extensions=["htm", "html"],
+                disabled_extensions=["txt"],
+            ),
+            loader=DictLoader(
+                {
+                    "main.star": "StarMain{{ foo }};{% include 'inc.tilde' %};",
+                    "inc.plus": (
+                        "PlusMain{{ foo }};"
+                        "{% block body %}"
+                        "PlusBody{{ foo }};"
+                        "{% endblock %}"
+                    ),
+                    "inc.tilde": (
+                        "{% extends 'inc.plus' %}"
+                        "TildeMain{{ foo }};"
+                        "{% block body %}"
+                        "MainBody{{ foo }};"
+                        "{{ super() }}"
+                        "{% endblock %}"
+                    ),
+                }
+            ),
+        )
+        t = env.get_template("main.star")
+        with pytest.raises(TemplateConfigurationError):
+            # Unfortunately the error is only risen once the template
+            # is rendered due to the dynamic nature of the extends
+            # and includes in the template
+            t.render(foo=chars)
+        # Now we test als with string render, note this has the default
+        # Markup escape, which is still different
+        t = env.from_string("StarMain{{ foo }};{% include 'inc.tilde' %};")
+        with pytest.raises(TemplateConfigurationError):
+            # Unfortunately the error is only risen once the template
+            # is rendered due to the dynamic nature of the extends
+            # and includes in the template
+            t.render(foo=chars)
+
+    def test_raise_exception_mixed_files_extends_with_macro(
+        self, escape_special_extensions
+    ):
+        chars = "<*~+>"
+
+        templates = {
+            "macro.star": (
+                "{% macro bar() -%}bar{{ foo }}{%- endmacro %}"
+                "{% block body %}{{ foo }};{{ bar() }}{% endblock %}"
+            ),
+            "inc.plus": (
+                "{% extends 'macro.star' %}"
+                "{% block body %}"
+                "{{ super() }}{{ foo }};{{ bar () }}"
+                "{% endblock %}"
+            ),
+        }
+
+        env = Environment(
+            autoescape=select_autoescape(special_extensions=escape_special_extensions),
+            loader=DictLoader(templates),
+        )
+        # First test simple stuff
+        t = env.get_template("macro.star")
+        assert t.render(foo=chars) == "<star~+>;bar<star~+>"
+        t = env.get_template("inc.plus")
+        with pytest.raises(TemplateConfigurationError):
+            # Unfortunately the error is only risen once the template
+            # is rendered due to the dynamic nature of the extends
+            # and includes in the template
+            t.render(foo=chars)
+
+        # Now we test als with string render, note this has the default
+        # Markup escape, which is still different
+        t = env.from_string(templates["inc.plus"])
+        with pytest.raises(TemplateConfigurationError):
+            # Unfortunately the error is only risen once the template
+            # is rendered due to the dynamic nature of the extends
+            # and includes in the template
+            t.render(foo=chars)
