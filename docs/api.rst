@@ -309,6 +309,7 @@ instead of direct :class:`Markup` calls::
     I was replied with {{ reply }}
     """
     # We know that everything that ends on world will use the special
+    # escape function
     mark_safe = env.get_markup_class(".world")
     my_msg = mark_safe("Make love not war!")
     reply = "We want war!"
@@ -323,11 +324,17 @@ instead of direct :class:`Markup` calls::
     In general the ``{% include %}`` directive works fine but especially
     ``{% extends %}`` commands can have unexpected outcomes as main template
     overwrites the context of the included one.
+    That's why Jinja will raise an exception if ``{% extends %}`` is used
+    with different escape functions / Markup classes unless explicitly
+    allowed through the ``Environment(allow_mixed_escape_extends=True)``
+    parameter.
 
-    If possible use the ``default_escape`` of the :class:`~jinja2.Environment`
-    to define the mainly used escape function and Markup class and use
-    different environments for different file types, if you have to
-    mix files with conflicting extensions using ``{% extends %}``.
+    If possible always use the ``default_escape`` of the
+    :class:`~jinja2.Environment` class to define the mainly used escape
+    function / Markup class and use different environments
+    for different file types. Especially using ``{% extends %}``
+    if you have to mix files with otherwise conflicting custom escape
+    settings.
 
 
 .. _identifier-naming:
