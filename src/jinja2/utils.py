@@ -639,10 +639,7 @@ def select_autoescape(
         if template_name is None:
             return default_for_string
         template_name = template_name.lower()
-        # create dictionary so that have lower case keys sorted from longest
-        # to shortest, so we can easily find the best match
-        # i.e. if there are .la.tex and .tex endings in the dictionary,
-        # .la.tex ending should be found if the filename if .la.tex is given
+        # Lookup autoescape function using the longest matching suffix
         for key, func in sorted(
             special_extensions.items(), key=lambda x: len(x[0]), reverse=True
         ):
