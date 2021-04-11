@@ -708,7 +708,7 @@ functions to a Jinja environment.
     :class:`Markup` directly to mark a string as safe or to escape it.
     Instead use :meth:`Environment.get_markup_class` to get the
     correct class.
-    Usage ``Markup = get_markup_class("mytemplate.ext")``
+    Usage ``Markup = env.get_markup_class("mytemplate.ext")``
 
 
 This is required as the :class:`Markup` class implements calls for its
