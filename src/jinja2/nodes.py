@@ -81,7 +81,7 @@ class EvalContext:
             self.autoescape = bool(environment.autoescape)
         self.volatile = False
 
-        # We need to keep  Markup Class if existing as autoescape can be
+        # We need to keep Markup Class if existing as autoescape can be
         # overwritten by {% autoescape %} environment.
         self._markup_class: Type["Markup"] = self.environment.get_markup_class(
             template_name
@@ -102,7 +102,7 @@ class EvalContext:
 
         use this function instead of direct calls to Markup
         if possible so custom escape functions
-        are correctly handeled by the Markup class.
+        are correctly handled by the Markup class.
 
         .. versionadded:: 3.0
 
