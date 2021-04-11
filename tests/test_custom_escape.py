@@ -32,7 +32,7 @@ class TestCustomAutoescape:
         # Make sure the result was marked as escaped
         assert escape(source % target) == "$foo,$bar,$dollar"
 
-    def test_eval_contex(self, env_custom_autoescape):
+    def test_eval_context(self, env_custom_autoescape):
         t = env_custom_autoescape.from_string(
             "{% autoescape true %}|{{ foo }}|{% endautoescape %}"
         )
@@ -64,10 +64,10 @@ class TestCustomAutoescape:
         assert t.render(foo="<$FOO$>") == "<$FOO$>"
 
     @pytest.mark.parametrize(
-        "escaper", [custom_escape, get_wrapped_escape_class(custom_escape)]
+        "escape_function", [custom_escape, get_wrapped_escape_class(custom_escape)]
     )
-    def test_custom_markup_environment_autoescape(self, escaper):
-        env = Environment(default_escape=escaper, autoescape=True)
+    def test_custom_markup_environment_autoescape(self, escape_function):
+        env = Environment(default_escape=escape_function, autoescape=True)
         t = env.from_string("{{ foo }}")
         assert t.render(foo="100$") == "100€"
         t = env.from_string("{{ foo|e }}")
