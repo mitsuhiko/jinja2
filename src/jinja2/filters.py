@@ -1577,7 +1577,7 @@ def do_tojson(
         kwargs = kwargs.copy()
         kwargs["indent"] = indent
 
-    return htmlsafe_json_dumps(value, dumps=dumps, **kwargs)
+    return htmlsafe_json_dumps(value, eval_ctx.mark_safe, dumps=dumps, **kwargs)
 
 
 def prepare_map(

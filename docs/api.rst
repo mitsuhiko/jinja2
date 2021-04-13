@@ -828,7 +828,8 @@ it can be used by extensions as well.
 
 The ``autoescape`` setting should be checked on the evaluation context,
 not the environment. The evaluation context will have the computed value
-for the current template.
+for the current template. It also has the computed value for the
+correct ``escape`` function and ``Markup`` class.
 
 Instead of ``pass_environment``:
 
@@ -839,7 +840,7 @@ Instead of ``pass_environment``:
         result = do_something(value)
 
         if env.autoescape:
-            result = Markup(result)
+            result = env.get_markup_class()(result)
 
         return result
 
@@ -852,7 +853,7 @@ Use ``pass_eval_context`` if you only need the setting:
         result = do_something(value)
 
         if eval_ctx.autoescape:
-            result = Markup(result)
+            result = eval_ctx.mark_safe(result)
 
         return result
 
@@ -865,7 +866,7 @@ Or use ``pass_context`` if you need other context behavior as well:
         result = do_something(value)
 
         if context.eval_ctx.autoescape:
-            result = Markup(result)
+            result = context.eval_ctx.mark_safe(result)
 
         return result
 
@@ -947,14 +948,14 @@ enabled before escaping the input and marking the output safe.
         br = "<br>\n"
 
         if eval_ctx.autoescape:
-            value = escape(value)
-            br = Markup(br)
+            value = eval_ctx.get_escape_function()(value)
+            br = eval_ctx.mark_safe(br)
 
         result = "\n\n".join(
             f"<p>{br.join(p.splitlines())}<\p>"
             for p in re.split(r"(?:\r\n|\r(?!\n)|\n){2,}", value)
         )
-        return Markup(result) if autoescape else result
+        return eval_ctx.mark_safe(result) if autoescape else result
 
 
 .. _writing-tests:

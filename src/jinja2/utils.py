@@ -405,8 +405,19 @@ def urlize(
     return "".join(words)
 
 
-def generate_lorem_ipsum(n=5, html=True, min=20, max=100):
-    """Generate some lorem ipsum for the template."""
+def generate_lorem_ipsum(
+    n: int = 5,
+    html: bool = True,
+    min: int = 20,
+    max: int = 100,
+    mark_safe: t.Callable[[t.Any], markupsafe.Markup] = markupsafe.Markup,
+    do_escape: t.Callable[[t.Any], markupsafe.Markup] = markupsafe.escape,
+) -> t.Union[markupsafe.Markup, str]:
+    """Generate some lorem ipsum for the template.
+
+    .. versionchanged:: 3.0
+        added mark_safe and do_escape parameter
+    """
     from .constants import LOREM_IPSUM_WORDS
 
     words = LOREM_IPSUM_WORDS.split()
@@ -442,18 +453,16 @@ def generate_lorem_ipsum(n=5, html=True, min=20, max=100):
             p.append(word)
 
         # ensure that the paragraph ends with a dot.
-        p = " ".join(p)
-        if p.endswith(","):
-            p = p[:-1] + "."
-        elif not p.endswith("."):
-            p += "."
-        result.append(p)
+        s = " ".join(p)
+        if s.endswith(","):
+            s = s[:-1] + "."
+        elif not s.endswith("."):
+            s += "."
+        result.append(s)
 
     if not html:
         return "\n\n".join(result)
-    return markupsafe.Markup(
-        "\n".join(f"<p>{markupsafe.escape(x)}</p>" for x in result)
-    )
+    return mark_safe("\n".join(f"<p>{do_escape(x)}</p>" for x in result))
 
 
 def url_quote(obj: t.Any, charset: str = "utf-8", for_qs: bool = False) -> str:
@@ -742,11 +751,14 @@ def select_autoescape(
 
 
 def htmlsafe_json_dumps(
-    obj: t.Any, dumps: t.Optional[t.Callable[..., str]] = None, **kwargs: t.Any
+    obj: t.Any,
+    mark_safe: t.Callable[[t.Any], markupsafe.Markup],
+    dumps: t.Optional[t.Callable[..., str]] = None,
+    **kwargs: t.Any,
 ) -> markupsafe.Markup:
     """Serialize an object to a string of JSON with :func:`json.dumps`,
     then replace HTML-unsafe characters with Unicode escapes and mark
-    the result safe with :class:`~markupsafe.Markup`.
+    the result safe with given mark_safe function.
 
     This is available in templates as the ``|tojson`` filter.
 
@@ -758,6 +770,7 @@ def htmlsafe_json_dumps(
     filter.
 
     :param obj: The object to serialize to JSON.
+    :param mark_safe: Class/Function that marks a string as safe
     :param dumps: The ``dumps`` function to use. Defaults to
         ``env.policies["json.dumps_function"]``, which defaults to
         :func:`json.dumps`.
@@ -765,14 +778,15 @@ def htmlsafe_json_dumps(
         ``env.policies["json.dumps_kwargs"]``.
 
     .. versionchanged:: 3.0
-        The ``dumper`` parameter is renamed to ``dumps``.
+        - The ``dumper`` parameter is renamed to ``dumps``.
+        - Added required mark_safe parameter
 
     .. versionadded:: 2.9
     """
     if dumps is None:
         dumps = json.dumps
 
-    return markupsafe.Markup(
+    return mark_safe(
         dumps(obj, **kwargs)
         .replace("<", "\\u003c")
         .replace(">", "\\u003e")
