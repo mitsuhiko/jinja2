@@ -3,11 +3,12 @@ import sys
 import typing as t
 from collections import abc
 from itertools import chain
-from types import MethodType
 
 from markupsafe import escape as html_escape  # noqa: F401
 from markupsafe import soft_str
 
+from .async_utils import auto_aiter
+from .async_utils import auto_await  # noqa: F401
 from .exceptions import TemplateNotFound  # noqa: F401
 from .exceptions import TemplateRuntimeError  # noqa: F401
 from .exceptions import UndefinedError
@@ -39,6 +40,11 @@ exported = [
     "Namespace",
     "Undefined",
     "internalcode",
+]
+async_exported = [
+    "AsyncLoopContext",
+    "auto_aiter",
+    "auto_await",
 ]
 
 
@@ -132,43 +138,32 @@ class TemplateReference:
         return f"<{self.__class__.__name__} {self.__context.name!r}>"
 
 
-def _get_func(x):
-    return getattr(x, "__func__", x)
-
-
 class ContextMeta(type):
     def __new__(mcs, name, bases, d):
         rv = type.__new__(mcs, name, bases, d)
-        if bases == ():
+
+        if not bases:
             return rv
 
-        resolve = _get_func(rv.resolve)
-        default_resolve = _get_func(Context.resolve)
-        resolve_or_missing = _get_func(rv.resolve_or_missing)
-        default_resolve_or_missing = _get_func(Context.resolve_or_missing)
+        if "resolve_or_missing" in d:
+            # If the subclass overrides resolve_or_missing it opts in to
+            # modern mode no matter what.
+            rv._legacy_resolve_mode = False
+        elif "resolve" in d or rv._legacy_resolve_mode:
+            # If the subclass overrides resolve, or if its base is
+            # already in legacy mode, warn about legacy behavior.
+            import warnings
 
-        # If we have a changed resolve but no changed default or missing
-        # resolve we invert the call logic.
-        if (
-            resolve is not default_resolve
-            and resolve_or_missing is default_resolve_or_missing
-        ):
+            warnings.warn(
+                "Overriding 'resolve' is deprecated and will not have"
+                " the expected behavior in Jinja 3.1. Override"
+                " 'resolve_or_missing' instead ",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             rv._legacy_resolve_mode = True
-        elif (
-            resolve is default_resolve
-            and resolve_or_missing is default_resolve_or_missing
-        ):
-            rv._fast_resolve_mode = True
 
         return rv
-
-
-def resolve_or_missing(context, key, missing=missing):
-    if key in context.vars:
-        return context.vars[key]
-    if key in context.parent:
-        return context.parent[key]
-    return missing
 
 
 @abc.Mapping.register
@@ -192,10 +187,7 @@ class Context(metaclass=ContextMeta):
     :class:`Undefined` object for missing variables.
     """
 
-    # XXX: we want to eventually make this be a deprecation warning and
-    # remove it.
     _legacy_resolve_mode = False
-    _fast_resolve_mode = False
 
     def __init__(self, environment, parent, name, blocks, globals=None):
         self.parent = parent
@@ -211,11 +203,6 @@ class Context(metaclass=ContextMeta):
         # from the template.
         self.blocks = {k: [v] for k, v in blocks.items()}
 
-        # In case we detect the fast resolve mode we can set up an alias
-        # here that bypasses the legacy code logic.
-        if self._fast_resolve_mode:
-            self.resolve_or_missing = MethodType(resolve_or_missing, self)
-
     def super(self, name, current):
         """Render a parent block."""
         try:
@@ -229,8 +216,11 @@ class Context(metaclass=ContextMeta):
         return BlockReference(name, self, blocks, index)
 
     def get(self, key, default=None):
-        """Returns an item from the template context, if it doesn't exist
-        `default` is returned.
+        """Look up a variable by name, or return a default if the key is
+        not found.
+
+        :param key: The variable name to look up.
+        :param default: The value to return if the key is not found.
         """
         try:
             return self[key]
@@ -238,27 +228,56 @@ class Context(metaclass=ContextMeta):
             return default
 
     def resolve(self, key):
-        """Looks up a variable like `__getitem__` or `get` but returns an
-        :class:`Undefined` object with the name of the name looked up.
+        """Look up a variable by name, or return an :class:`Undefined`
+        object if the key is not found.
+
+        If you need to add custom behavior, override
+        :meth:`resolve_or_missing`, not this method. The various lookup
+        functions use that method, not this one.
+
+        :param key: The variable name to look up.
         """
         if self._legacy_resolve_mode:
-            rv = resolve_or_missing(self, key)
-        else:
-            rv = self.resolve_or_missing(key)
+            if key in self.vars:
+                return self.vars[key]
+
+            if key in self.parent:
+                return self.parent[key]
+
+            return self.environment.undefined(name=key)
+
+        rv = self.resolve_or_missing(key)
+
         if rv is missing:
             return self.environment.undefined(name=key)
+
         return rv
 
     def resolve_or_missing(self, key):
-        """Resolves a variable like :meth:`resolve` but returns the
-        special `missing` value if it cannot be found.
+        """Look up a variable by name, or return a ``missing`` sentinel
+        if the key is not found.
+
+        Override this method to add custom lookup behavior.
+        :meth:`resolve`, :meth:`get`, and :meth:`__getitem__` use this
+        method. Don't call this method directly.
+
+        :param key: The variable name to look up.
         """
         if self._legacy_resolve_mode:
             rv = self.resolve(key)
+
             if isinstance(rv, Undefined):
-                rv = missing
+                return missing
+
             return rv
-        return resolve_or_missing(self, key)
+
+        if key in self.vars:
+            return self.vars[key]
+
+        if key in self.parent:
+            return self.parent[key]
+
+        return missing
 
     def get_exported(self):
         """Get a new dict with the exported variables."""
@@ -348,12 +367,14 @@ class Context(metaclass=ContextMeta):
         return name in self.vars or name in self.parent
 
     def __getitem__(self, key):
-        """Lookup a variable or raise `KeyError` if the variable is
-        undefined.
+        """Look up a variable by name with ``[]`` syntax, or raise a
+        ``KeyError`` if the key is not found.
         """
         item = self.resolve_or_missing(key)
+
         if item is missing:
             raise KeyError(key)
+
         return item
 
     def __repr__(self):
@@ -379,8 +400,21 @@ class BlockReference:
         return BlockReference(self.name, self._context, self._stack, self._depth + 1)
 
     @internalcode
+    async def _async_call(self):
+        rv = concat([x async for x in self._stack[self._depth](self._context)])
+
+        if self._context.eval_ctx.autoescape:
+            return self._context.eval_ctx.mark_safe(rv)
+
+        return rv
+
+    @internalcode
     def __call__(self):
+        if self._context.environment.is_async:
+            return self._async_call()
+
         rv = concat(self._stack[self._depth](self._context))
+
         if self._context.eval_ctx.autoescape:
             rv = self._context.eval_ctx.mark_safe(rv)
         return rv
@@ -577,6 +611,73 @@ class LoopContext:
         return f"<{self.__class__.__name__} {self.index}/{self.length}>"
 
 
+class AsyncLoopContext(LoopContext):
+    @staticmethod
+    def _to_iterator(iterable):
+        return auto_aiter(iterable)
+
+    @property
+    async def length(self):
+        if self._length is not None:
+            return self._length
+
+        try:
+            self._length = len(self._iterable)
+        except TypeError:
+            iterable = [x async for x in self._iterator]
+            self._iterator = self._to_iterator(iterable)
+            self._length = len(iterable) + self.index + (self._after is not missing)
+
+        return self._length
+
+    @property
+    async def revindex0(self):
+        return await self.length - self.index
+
+    @property
+    async def revindex(self):
+        return await self.length - self.index0
+
+    async def _peek_next(self):
+        if self._after is not missing:
+            return self._after
+
+        try:
+            self._after = await self._iterator.__anext__()
+        except StopAsyncIteration:
+            self._after = missing
+
+        return self._after
+
+    @property
+    async def last(self):
+        return await self._peek_next() is missing
+
+    @property
+    async def nextitem(self):
+        rv = await self._peek_next()
+
+        if rv is missing:
+            return self._undefined("there is no next item")
+
+        return rv
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        if self._after is not missing:
+            rv = self._after
+            self._after = missing
+        else:
+            rv = await self._iterator.__anext__()
+
+        self.index0 += 1
+        self._before = self._current
+        self._current = rv
+        return rv, self
+
+
 class Macro:
     """Wraps a macro function."""
 
@@ -689,9 +790,20 @@ class Macro:
 
         return self._invoke(arguments, autoescape)
 
+    async def _async_invoke(self, arguments, autoescape):
+        rv = await self._func(*arguments)
+
+        if autoescape:
+            return self._mark_safe(rv)
+
+        return rv
+
     def _invoke(self, arguments, autoescape):
-        """This method is being swapped out by the async implementation."""
+        if self._environment.is_async:
+            return self._async_invoke(arguments, autoescape)
+
         rv = self._func(*arguments)
+
         if autoescape:
             rv = self._mark_safe(rv)
         return rv

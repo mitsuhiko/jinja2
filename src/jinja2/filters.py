@@ -11,6 +11,10 @@ from itertools import groupby
 
 import markupsafe
 
+from .async_utils import async_variant
+from .async_utils import auto_aiter
+from .async_utils import auto_await
+from .async_utils import auto_to_list
 from .exceptions import FilterArgumentError
 from .runtime import Undefined
 from .utils import htmlsafe_json_dumps
@@ -598,7 +602,7 @@ def do_default(
 
 
 @pass_eval_context
-def do_join(
+def sync_do_join(
     eval_ctx: "EvalContext",
     value: t.Iterable,
     d: str = "",
@@ -658,19 +662,39 @@ def do_join(
     return markupsafe.soft_str(d).join(map(markupsafe.soft_str, value))
 
 
+@async_variant(sync_do_join)
+async def do_join(
+    eval_ctx: "EvalContext",
+    value: t.Union[t.AsyncIterable, t.Iterable],
+    d: str = "",
+    attribute: t.Optional[t.Union[str, int]] = None,
+) -> str:
+    return sync_do_join(eval_ctx, await auto_to_list(value), d, attribute)
+
+
 def do_center(value: str, width: int = 80) -> str:
     """Centers the value in a field of a given width."""
     return markupsafe.soft_str(value).center(width)
 
 
 @pass_environment
-def do_first(
+def sync_do_first(
     environment: "Environment", seq: "t.Iterable[V]"
 ) -> "t.Union[V, Undefined]":
     """Return the first item of a sequence."""
     try:
         return next(iter(seq))
     except StopIteration:
+        return environment.undefined("No first item, sequence was empty.")
+
+
+@async_variant(sync_do_first)
+async def do_first(
+    environment: "Environment", seq: "t.Union[t.AsyncIterable[V], t.Iterable[V]]"
+) -> "t.Union[V, Undefined]":
+    try:
+        return t.cast("V", await auto_aiter(seq).__anext__())
+    except StopAsyncIteration:
         return environment.undefined("No first item, sequence was empty.")
 
 
@@ -691,6 +715,9 @@ def do_last(
         return next(iter(reversed(seq)))
     except StopIteration:
         return environment.undefined("No last item, sequence was empty.")
+
+
+# No async do_last, it may not be safe in async mode.
 
 
 @pass_context
@@ -1078,7 +1105,7 @@ def do_striptags(eval_ctx: "EvalContext", value: "t.Union[str, HasHTML]") -> str
     return eval_ctx.mark_safe(str(value)).striptags()
 
 
-def do_slice(
+def sync_do_slice(
     value: "t.Collection[V]", slices: int, fill_with: "t.Optional[V]" = None
 ) -> "t.Iterator[t.List[V]]":
     """Slice an iterator and return a list of lists containing
@@ -1119,6 +1146,15 @@ def do_slice(
             tmp.append(fill_with)
 
         yield tmp
+
+
+@async_variant(sync_do_slice)
+async def do_slice(
+    value: "t.Union[t.AsyncIterable[V], t.Iterable[V]]",
+    slices: int,
+    fill_with: t.Optional[t.Any] = None,
+) -> "t.Iterator[t.List[V]]":
+    return sync_do_slice(await auto_to_list(value), slices, fill_with)
 
 
 def do_batch(
@@ -1212,7 +1248,7 @@ class _GroupTuple(t.NamedTuple):
 
 
 @pass_environment
-def do_groupby(
+def sync_do_groupby(
     environment: "Environment",
     value: "t.Iterable[V]",
     attribute: t.Union[str, int],
@@ -1270,8 +1306,22 @@ def do_groupby(
     ]
 
 
+@async_variant(sync_do_groupby)
+async def do_groupby(
+    environment: "Environment",
+    value: "t.Union[t.AsyncIterable[V], t.Iterable[V]]",
+    attribute: t.Union[str, int],
+    default: t.Optional[t.Any] = None,
+) -> "t.List[t.Tuple[t.Any, t.List[V]]]":
+    expr = make_attrgetter(environment, attribute, default=default)
+    return [
+        _GroupTuple(key, await auto_to_list(values))
+        for key, values in groupby(sorted(await auto_to_list(value), key=expr), expr)
+    ]
+
+
 @pass_environment
-def do_sum(
+def sync_do_sum(
     environment: "Environment",
     iterable: "t.Iterable[V]",
     attribute: t.Optional[t.Union[str, int]] = None,
@@ -1297,11 +1347,38 @@ def do_sum(
     return sum(iterable, start)
 
 
-def do_list(value: "t.Iterable[V]") -> "t.List[V]":
+@async_variant(sync_do_sum)
+async def do_sum(
+    environment: "Environment",
+    iterable: "t.Union[t.AsyncIterable[V], t.Iterable[V]]",
+    attribute: t.Optional[t.Union[str, int]] = None,
+    start: "V" = 0,  # type: ignore
+) -> "V":
+    rv = start
+
+    if attribute is not None:
+        func = make_attrgetter(environment, attribute)
+    else:
+
+        def func(x):
+            return x
+
+    async for item in auto_aiter(iterable):
+        rv += func(item)
+
+    return rv
+
+
+def sync_do_list(value: "t.Iterable[V]") -> "t.List[V]":
     """Convert the value into a list.  If it was a string the returned list
     will be a list of characters.
     """
     return list(value)
+
+
+@async_variant(sync_do_list)
+async def do_list(value: "t.Union[t.AsyncIterable[V], t.Iterable[V]]") -> "t.List[V]":
+    return await auto_to_list(value)
 
 
 @pass_eval_context
@@ -1377,14 +1454,14 @@ def do_attr(
 
 
 @typing.overload
-def do_map(
+def sync_do_map(
     context: "Context", value: t.Iterable, name: str, *args: t.Any, **kwargs: t.Any
 ) -> t.Iterable:
     ...
 
 
 @typing.overload
-def do_map(
+def sync_do_map(
     context: "Context",
     value: t.Iterable,
     *,
@@ -1395,7 +1472,7 @@ def do_map(
 
 
 @pass_context
-def do_map(context, value, *args, **kwargs):
+def sync_do_map(context, value, *args, **kwargs):
     """Applies a filter on a sequence of objects or looks up an attribute.
     This is useful when dealing with lists of objects but you are really
     only interested in a certain value of it.
@@ -1442,8 +1519,39 @@ def do_map(context, value, *args, **kwargs):
             yield func(item)
 
 
+@typing.overload
+def do_map(
+    context: "Context",
+    value: t.Union[t.AsyncIterable, t.Iterable],
+    name: str,
+    *args: t.Any,
+    **kwargs: t.Any,
+) -> t.Iterable:
+    ...
+
+
+@typing.overload
+def do_map(
+    context: "Context",
+    value: t.Union[t.AsyncIterable, t.Iterable],
+    *,
+    attribute: str = ...,
+    default: t.Optional[t.Any] = None,
+) -> t.Iterable:
+    ...
+
+
+@async_variant(sync_do_map)
+async def do_map(context, value, *args, **kwargs):
+    if value:
+        func = prepare_map(context, args, kwargs)
+
+        async for item in auto_aiter(value):
+            yield await auto_await(func(item))
+
+
 @pass_context
-def do_select(
+def sync_do_select(
     context: "Context", value: "t.Iterable[V]", *args: t.Any, **kwargs: t.Any
 ) -> "t.Iterator[V]":
     """Filters a sequence of objects by applying a test to each object,
@@ -1473,8 +1581,18 @@ def do_select(
     return select_or_reject(context, value, args, kwargs, lambda x: x, False)
 
 
+@async_variant(sync_do_select)
+async def do_select(
+    context: "Context",
+    value: "t.Union[t.AsyncIterable[V], t.Iterable[V]]",
+    *args: t.Any,
+    **kwargs: t.Any,
+) -> "t.AsyncIterator[V]":
+    return async_select_or_reject(context, value, args, kwargs, lambda x: x, False)
+
+
 @pass_context
-def do_reject(
+def sync_do_reject(
     context: "Context", value: "t.Iterable[V]", *args: t.Any, **kwargs: t.Any
 ) -> "t.Iterator[V]":
     """Filters a sequence of objects by applying a test to each object,
@@ -1499,8 +1617,18 @@ def do_reject(
     return select_or_reject(context, value, args, kwargs, lambda x: not x, False)
 
 
+@async_variant(sync_do_reject)
+async def do_reject(
+    context: "Context",
+    value: "t.Union[t.AsyncIterable[V], t.Iterable[V]]",
+    *args: t.Any,
+    **kwargs: t.Any,
+) -> "t.AsyncIterator[V]":
+    return async_select_or_reject(context, value, args, kwargs, lambda x: not x, False)
+
+
 @pass_context
-def do_selectattr(
+def sync_do_selectattr(
     context: "Context", value: "t.Iterable[V]", *args: t.Any, **kwargs: t.Any
 ) -> "t.Iterator[V]":
     """Filters a sequence of objects by applying a test to the specified
@@ -1529,8 +1657,18 @@ def do_selectattr(
     return select_or_reject(context, value, args, kwargs, lambda x: x, True)
 
 
+@async_variant(sync_do_selectattr)
+async def do_selectattr(
+    context: "Context",
+    value: "t.Union[t.AsyncIterable[V], t.Iterable[V]]",
+    *args: t.Any,
+    **kwargs: t.Any,
+) -> "t.AsyncIterator[V]":
+    return async_select_or_reject(context, value, args, kwargs, lambda x: x, True)
+
+
 @pass_context
-def do_rejectattr(
+def sync_do_rejectattr(
     context: "Context", value: "t.Iterable[V]", *args: t.Any, **kwargs: t.Any
 ) -> "t.Iterator[V]":
     """Filters a sequence of objects by applying a test to the specified
@@ -1555,6 +1693,16 @@ def do_rejectattr(
     .. versionadded:: 2.7
     """
     return select_or_reject(context, value, args, kwargs, lambda x: not x, True)
+
+
+@async_variant(sync_do_rejectattr)
+async def do_rejectattr(
+    context: "Context",
+    value: "t.Union[t.AsyncIterable[V], t.Iterable[V]]",
+    *args: t.Any,
+    **kwargs: t.Any,
+) -> "t.AsyncIterator[V]":
+    return async_select_or_reject(context, value, args, kwargs, lambda x: not x, True)
 
 
 @pass_eval_context
@@ -1660,6 +1808,22 @@ def select_or_reject(
         func = prepare_select_or_reject(context, args, kwargs, modfunc, lookup_attr)
 
         for item in value:
+            if func(item):
+                yield item
+
+
+async def async_select_or_reject(
+    context: "Context",
+    value: "t.Union[t.AsyncIterable[V], t.Iterable[V]]",
+    args: t.Tuple,
+    kwargs: t.Dict[str, t.Any],
+    modfunc: t.Callable[[t.Any], t.Any],
+    lookup_attr: bool,
+) -> "t.AsyncIterator[V]":
+    if value:
+        func = prepare_select_or_reject(context, args, kwargs, modfunc, lookup_attr)
+
+        async for item in auto_aiter(value):
             if func(item):
                 yield item
 
