@@ -93,7 +93,7 @@ def environmentfilter(f):
 
 
 @pass_eval_context
-def escape(eval_ctx: "EvalContext", s: t.Union[str, "HasHTML"]) -> Markup:
+def do_escape(eval_ctx: "EvalContext", s: t.Union[str, "HasHTML"]) -> Markup:
     """
     Escape a string with the escape function active in the current
     eval context
@@ -205,7 +205,7 @@ def do_forceescape(eval_ctx: "EvalContext", value: "t.Union[str, HasHTML]") -> M
     """
     if hasattr(value, "__html__"):
         value = t.cast("HasHTML", value).__html__()
-    return escape(eval_ctx, str(value))
+    return do_escape(eval_ctx, str(value))
 
 
 def do_urlencode(
@@ -275,7 +275,7 @@ def do_replace(
         or hasattr(new, "__html__")
         and not hasattr(s, "__html__")
     ):
-        s = escape(eval_ctx, s)
+        s = do_escape(eval_ctx, s)
     else:
         s = soft_str(s)  # type: ignore
 
@@ -638,16 +638,16 @@ def do_join(
     # if any of the items has.  If yes we do a coercion to Markup
     if not hasattr(d, "__html__"):
         value = list(value)
-        do_escape = False
+        perform_escape = False
 
         for idx, item in enumerate(value):
             if hasattr(item, "__html__"):
-                do_escape = True
+                perform_escape = True
             else:
                 value[idx] = str(item)
 
-        if do_escape:
-            d = escape(eval_ctx, d)
+        if perform_escape:
+            d = do_escape(eval_ctx, d)
         else:
             d = str(d)
 
@@ -1668,8 +1668,8 @@ FILTERS = {
     "d": do_default,
     "default": do_default,
     "dictsort": do_dictsort,
-    "e": escape,
-    "escape": escape,
+    "e": do_escape,
+    "escape": do_escape,
     "filesizeformat": do_filesizeformat,
     "first": do_first,
     "float": do_float,
