@@ -984,24 +984,12 @@ class Environment:
         # The Simplest case it is exactly the same class
         # We do not check for subclasses because a subclass could have
         # altered the escape behavior already
-        if base_class == parent_class:
-            return
-
-        # The dynamic nature of get_wrapped_escape_class does not allow
-        # for direct compares, so we need to compare the uid
-        if (
-            hasattr(base_class, "get_class_uid")
-            and hasattr(parent_class, "get_class_uid")
-            and base_class.get_class_uid == parent_class.get_class_uid  # type: ignore
-        ):
-            return
-
-        # Okay nothing matched so far, we hit a dead end
-        raise TemplateConfigurationError(
-            "You tried to extend a template with a different escape "
-            "function or Markup class as the base template. This has to be enabled"
-            "explicitly using Environment(allow_mixed_escape_extends=True)."
-        )
+        if base_class != parent_class:
+            raise TemplateConfigurationError(
+                "You tried to extend a template with a different escape "
+                "function or Markup class as the base template. This has to be enabled"
+                "explicitly using Environment(allow_mixed_escape_extends=True)."
+            )
 
     @internalcode
     def get_template(self, name, parent=None, globals=None, caller=None):

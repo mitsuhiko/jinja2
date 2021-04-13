@@ -22,7 +22,7 @@ def escape_special_extensions():
     def plus(s):
         return str(s).replace("+", "plus")
 
-    return {"star": star, "tilde": tilde, "plus": plus}
+    return {"star": star, "tilde": tilde, "plus": plus, "foo": star}
 
 
 class TestCustomAutoescape:
@@ -208,10 +208,14 @@ class TestCustomAutoescape:
             loader=DictLoader(
                 {
                     "main.star": "{% block body %}{{ foo }};{% endblock %}",
-                    "inc.star": "{% extends 'main.star' %}"
-                    "{% block body %}{{ super() }}{{ foo }};{% endblock %}",
-                    "inc.tilde": "{% extends 'main.star' %}"
-                    "{% block body %}{{ super() }}{{ foo }};{% endblock %}",
+                    "inc.star": (
+                        "{% extends 'main.star' %}"
+                        "{% block body %}{{ super() }}{{ foo }};{% endblock %}"
+                    ),
+                    "inc.tilde": (
+                        "{% extends 'main.star' %}"
+                        "{% block body %}{{ super() }}{{ foo }};{% endblock %}"
+                    ),
                 }
             ),
             allow_mixed_escape_extends=True,
@@ -229,6 +233,36 @@ class TestCustomAutoescape:
         # you can fix it, changing it should be considered a breaking
         # change
         assert t.render(foo=chars) == "<*tilde+>;<*tilde+>;"
+
+    def test_mixed_files_extend_same_function(self, escape_special_extensions):
+        chars = "<*~+>"
+
+        env = Environment(
+            autoescape=select_autoescape(special_extensions=escape_special_extensions),
+            loader=DictLoader(
+                {
+                    "main.star": "{% block body %}{{ foo }};{% endblock %}",
+                    "inc.star": (
+                        "{% extends 'main.star' %}"
+                        "{% block body %}{{ super() }}{{ foo }};{% endblock %}"
+                    ),
+                    "inc.foo": (
+                        "{% extends 'inc.star' %}"
+                        "{% block body %}{{ super() }}{{ foo }};{% endblock %}"
+                    ),
+                }
+            ),
+            allow_mixed_escape_extends=True,
+        )
+        # First test simple stuff
+        t = env.get_template("main.star")
+        assert t.render(foo=chars) == "<star~+>;"
+
+        t = env.get_template("inc.star")
+        assert t.render(foo=chars) == "<star~+>;<star~+>;"
+
+        t = env.get_template("inc.foo")
+        assert t.render(foo=chars) == "<star~+>;<star~+>;<star~+>;"
 
     def test_mixed_files_extends_with_macro(self, escape_special_extensions):
         chars = "<*~+>"
@@ -260,6 +294,32 @@ class TestCustomAutoescape:
         # you can fix it, changing it should be considered a breaking
         # change
         assert t.render(foo=chars) == "<*~plus>;bar<*~plus><*~plus>;bar<*~plus>"
+
+    def test_mixed_files_ext_same_function_with_macro(self, escape_special_extensions):
+        chars = "<*~+>"
+
+        env = Environment(
+            autoescape=select_autoescape(special_extensions=escape_special_extensions),
+            loader=DictLoader(
+                {
+                    "macro.star": (
+                        "{% macro bar() -%}bar{{ foo }}{%- endmacro %}"
+                        "{% block body %}{{ foo }};{{ bar() }}{% endblock %}"
+                    ),
+                    "inc.foo": (
+                        "{% extends 'macro.star' %}"
+                        "{% block body %}"
+                        "{{ super() }}{{ foo }};{{ bar () }}"
+                        "{% endblock %}"
+                    ),
+                }
+            ),
+        )
+        # First test simple stuff
+        t = env.get_template("macro.star")
+        assert t.render(foo=chars) == "<star~+>;bar<star~+>"
+        t = env.get_template("inc.foo")
+        assert t.render(foo=chars) == "<star~+>;bar<star~+><star~+>;bar<star~+>"
 
     def test_mixed_files_extends_with_macro_only_bool(self):
         chars = "<*~+>"

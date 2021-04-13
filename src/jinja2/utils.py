@@ -781,7 +781,10 @@ def htmlsafe_json_dumps(
     )
 
 
-@lru_cache(100)
+# We are comparing the resulting markup classes  so have to make sure
+# that the same custom_escape function returns always the very same
+# Markup class. This is only possible using the cache
+@lru_cache(500)
 def get_wrapped_escape_class(
     custom_escape: Callable[[Any], str]
 ) -> Type[markupsafe.Markup]:
@@ -807,14 +810,6 @@ def get_wrapped_escape_class(
         """
         Make sure that the custom escape function is used
         """
-
-        @classmethod
-        def get_class_uid(cls) -> int:
-            """
-            Due to dynamic nature of the class it is hard to compare it
-            therefore we need an uid
-            """
-            return hash(escape)
 
         @classmethod
         def get_unwrapped_escape(cls):
