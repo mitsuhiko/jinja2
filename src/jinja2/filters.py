@@ -92,7 +92,7 @@ def environmentfilter(f):
     return pass_environment(f)
 
 
-@evalcontextfilter
+@pass_eval_context
 def escape(eval_ctx: "EvalContext", s: t.Union[str, "HasHTML"]) -> Markup:
     """
     Escape a string with the escape function active in the current
@@ -195,7 +195,7 @@ def _prepare_attribute_parts(
     return [attr]
 
 
-@evalcontextfilter
+@pass_eval_context
 def do_forceescape(eval_ctx: "EvalContext", value: "t.Union[str, HasHTML]") -> Markup:
     """
     Enforce HTML escaping.  This will probably double escape variables.
@@ -825,7 +825,7 @@ def do_urlize(
     return rv
 
 
-@evalcontextfilter
+@pass_eval_context
 def do_indent(
     eval_ctx: "EvalContext",
     s: t.Union[str, "HasHTML"],
@@ -1298,7 +1298,7 @@ def do_list(value: "t.Iterable[V]") -> "t.List[V]":
     return list(value)
 
 
-@evalcontextfilter
+@pass_eval_context
 def do_mark_safe(eval_ctx: "EvalContext", value: str) -> Markup:
     """Mark the value as safe which means that in an environment with automatic
     escaping enabled this variable will not be escaped.
