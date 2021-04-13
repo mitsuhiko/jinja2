@@ -941,7 +941,6 @@ enabled before escaping the input and marking the output safe.
 
     import re
     from jinja2 import pass_eval_context
-    from markupsafe import Markup, escape
 
     @pass_eval_context
     def nl2br(eval_ctx, value):

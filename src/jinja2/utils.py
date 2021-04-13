@@ -290,6 +290,7 @@ def urlize(
     rel: t.Optional[str] = None,
     target: t.Optional[str] = None,
     extra_schemes: t.Optional[t.Iterable[str]] = None,
+    do_escape: t.Callable[[Any], markupsafe.Markup] = markupsafe.escape,
 ) -> str:
     """Convert URLs in text into clickable links.
 
@@ -312,7 +313,7 @@ def urlize(
         in addition to the default behavior.
 
     .. versionchanged:: 3.0
-        The ``extra_schemes`` parameter was added.
+        The ``extra_schemes`` and ``do_escape`` parameter was added.
 
     .. versionchanged:: 3.0
         Generate ``https://`` links for URLs without a scheme.
@@ -335,9 +336,9 @@ def urlize(
         def trim_url(x):
             return x
 
-    words = re.split(r"(\s+)", str(markupsafe.escape(text)))
-    rel_attr = f' rel="{markupsafe.escape(rel)}"' if rel else ""
-    target_attr = f' target="{markupsafe.escape(target)}"' if target else ""
+    words = re.split(r"(\s+)", str(do_escape(text)))
+    rel_attr = f' rel="{do_escape(rel)}"' if rel else ""
+    target_attr = f' target="{do_escape(target)}"' if target else ""
 
     for i, word in enumerate(words):
         head, middle, tail = "", word, ""

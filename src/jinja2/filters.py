@@ -9,8 +9,7 @@ from collections import abc
 from itertools import chain
 from itertools import groupby
 
-from markupsafe import Markup
-from markupsafe import soft_str
+import markupsafe
 
 from .exceptions import FilterArgumentError
 from .runtime import Undefined
@@ -93,7 +92,7 @@ def environmentfilter(f):
 
 
 @pass_eval_context
-def do_escape(eval_ctx: "EvalContext", s: t.Union[str, "HasHTML"]) -> Markup:
+def do_escape(eval_ctx: "EvalContext", s: t.Union[str, "HasHTML"]) -> markupsafe.Markup:
     """
     Escape a string with the escape function active in the current
     eval context
@@ -196,7 +195,9 @@ def _prepare_attribute_parts(
 
 
 @pass_eval_context
-def do_forceescape(eval_ctx: "EvalContext", value: "t.Union[str, HasHTML]") -> Markup:
+def do_forceescape(
+    eval_ctx: "EvalContext", value: "t.Union[str, HasHTML]"
+) -> markupsafe.Markup:
     """
     Enforce HTML escaping.  This will probably double escape variables.
 
@@ -277,7 +278,7 @@ def do_replace(
     ):
         s = do_escape(eval_ctx, s)
     else:
-        s = soft_str(s)  # type: ignore
+        s = markupsafe.soft_str(s)  # type: ignore
 
     # Special case, if user uses Markup class directly to mark
     # something as safe but uses custom escape function
@@ -288,17 +289,17 @@ def do_replace(
         s = t.cast("HasHTML", s)
         s = eval_ctx.mark_safe(s.__html__())
 
-    return s.replace(soft_str(old), soft_str(new), count)
+    return s.replace(markupsafe.soft_str(old), markupsafe.soft_str(new), count)
 
 
 def do_upper(s: str) -> str:
     """Convert a value to uppercase."""
-    return soft_str(s).upper()
+    return markupsafe.soft_str(s).upper()
 
 
 def do_lower(s: str) -> str:
     """Convert a value to lowercase."""
-    return soft_str(s).lower()
+    return markupsafe.soft_str(s).lower()
 
 
 @pass_eval_context
@@ -354,7 +355,7 @@ def do_capitalize(s: str) -> str:
     """Capitalize a value. The first character will be uppercase, all others
     lowercase.
     """
-    return soft_str(s).capitalize()
+    return markupsafe.soft_str(s).capitalize()
 
 
 _word_beginning_split_re = re.compile(r"([-\s({\[<]+)")
@@ -367,7 +368,7 @@ def do_title(s: str) -> str:
     return "".join(
         [
             item[0].upper() + item[1:].lower()
-            for item in _word_beginning_split_re.split(soft_str(s))
+            for item in _word_beginning_split_re.split(markupsafe.soft_str(s))
             if item
         ]
     )
@@ -654,12 +655,12 @@ def do_join(
         return d.join(value)
 
     # no html involved, to normal joining
-    return soft_str(d).join(map(soft_str, value))
+    return markupsafe.soft_str(d).join(map(markupsafe.soft_str, value))
 
 
 def do_center(value: str, width: int = 80) -> str:
     """Centers the value in a field of a given width."""
-    return soft_str(value).center(width)
+    return markupsafe.soft_str(value).center(width)
 
 
 @pass_environment
@@ -817,6 +818,7 @@ def do_urlize(
         rel=rel,
         target=target,
         extra_schemes=extra_schemes,
+        do_escape=eval_ctx.get_escape_function(),
     )
 
     if eval_ctx.autoescape:
@@ -995,7 +997,7 @@ _word_re = re.compile(r"\w+")
 
 def do_wordcount(s: str) -> int:
     """Count the words in that string."""
-    return len(_word_re.findall(soft_str(s)))
+    return len(_word_re.findall(markupsafe.soft_str(s)))
 
 
 def do_int(value: t.Any, default: int = 0, base: int = 10) -> int:
@@ -1056,20 +1058,24 @@ def do_format(value: str, *args: t.Any, **kwargs: t.Any) -> str:
             "can't handle positional and keyword arguments at the same time"
         )
 
-    return soft_str(value) % (kwargs or args)
+    return markupsafe.soft_str(value) % (kwargs or args)
 
 
 def do_trim(value: str, chars: t.Optional[str] = None) -> str:
     """Strip leading and trailing characters, by default whitespace."""
-    return soft_str(value).strip(chars)
+    return markupsafe.soft_str(value).strip(chars)
 
 
-def do_striptags(value: "t.Union[str, HasHTML]") -> str:
+@pass_eval_context
+def do_striptags(eval_ctx: "EvalContext", value: "t.Union[str, HasHTML]") -> str:
     """Strip SGML/XML tags and replace adjacent whitespace by one space."""
     if hasattr(value, "__html__"):
         value = t.cast("HasHTML", value).__html__()
 
-    return Markup(str(value)).striptags()
+    # Even so we don't ever expect a custom escape non HTML
+    # function to be used here, we use the eval_ctx mark_safe
+    # function for consistency
+    return eval_ctx.mark_safe(str(value)).striptags()
 
 
 def do_slice(
@@ -1299,7 +1305,7 @@ def do_list(value: "t.Iterable[V]") -> "t.List[V]":
 
 
 @pass_eval_context
-def do_mark_safe(eval_ctx: "EvalContext", value: str) -> Markup:
+def do_mark_safe(eval_ctx: "EvalContext", value: str) -> markupsafe.Markup:
     """Mark the value as safe which means that in an environment with automatic
     escaping enabled this variable will not be escaped.
     """
@@ -1554,7 +1560,7 @@ def do_rejectattr(
 @pass_eval_context
 def do_tojson(
     eval_ctx: "EvalContext", value: t.Any, indent: t.Optional[int] = None
-) -> Markup:
+) -> markupsafe.Markup:
     """Serialize an object to a string of JSON, and mark it safe to
     render in HTML. This filter is only for use in HTML documents.
 
@@ -1698,7 +1704,7 @@ FILTERS = {
     "selectattr": do_selectattr,
     "slice": do_slice,
     "sort": do_sort,
-    "string": soft_str,
+    "string": markupsafe.soft_str,
     "striptags": do_striptags,
     "sum": do_sum,
     "title": do_title,
