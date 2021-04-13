@@ -801,7 +801,7 @@ def get_wrapped_escape_class(
 
     :param custom_escape: The function that escapes the objects to a str
 
-    :returns a Markup class using this escape function
+    :return: a Markup class using this escape function
 
     .. versionadded:: 3.0
     """

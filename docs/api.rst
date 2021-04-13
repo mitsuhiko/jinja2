@@ -220,6 +220,92 @@ useful if you want to dig deeper into Jinja or :ref:`develop extensions
     :members: disable_buffering, enable_buffering, dump
 
 
+.. _escaping:
+
+Safe Strings and escaping
+-------------------------
+.. versionchanged:: 3.0
+
+To handle untrusted input when rendering templates to
+avoid injection attacks Jinja uses a combination of trusted strings
+and escape functions.
+
+The general idea that values that can be trusted will passed as special
+string subclass. Doing so it can be prevent that an input is escaped
+multiple times and at the same time make sure, that using string
+operation like ``%`` the original escaped string stays escaped, even
+when unescaped string are thrown at it.
+
+Before Jinja 3.0 this was done by the hardcoded ``Markup`` class and
+``escape(s: str)`` function from the `MarkupSafe`_  package.
+The ``escape(s: str)`` function convert the characters
+``&``, ``<``, ``>``, ``'``, and ``"`` in string `s`
+to HTML-safe sequences.  It is intended to be used  if you need to
+display text that might contain such characters in HTML.
+
+The result of a call of the ``escape(s: str)`` function is a
+``Markup`` class.
+This class provides an ``.__html__()`` method, which is used internally
+as an indicator that the string returned by this method is safe.
+This way of defining a save/HTML string is also used by other Template
+System or things like widget in Jupter Notebook.
+
+The class also overwrites a bunch of string methods and operators like:
+``str.join()``, ``str.split()``, ``str.__add__()``, ``str.__mod__()`` etc.
+This is done in a way sp that the result of these operations
+in combination with an raw strings is always an escaped ``Markup``
+class by using the ``escape`` method of the ``Markup`` class.
+
+With version 3.0 this hardcoded relation to the `MarkupSafe`_ and it's
+HTML based escaping was removed, as Jinja is intended to be a Language
+independent template system.
+It is still the default but now you are able to provide a custom escape
+function i.e. as parameter *default_escape* of :class:`Environment` or
+as result of an *autoescape* call.
+
+So now you can write autoescaped templates for LaTeX or other languages.
+See :ref:`autoescaping` for examples.
+Please note that a safe string is still defined through the existence of
+the ``__html__()`` method!
+
+.. admonition:: Attention
+
+    Especially when using a custom escape function *never* use the
+    :class:`Markup` directly to mark a string as safe or to escape it.
+    Instead use :meth:`Environment.get_markup_class` to get the
+    correct class.
+
+    Usage::
+
+        Markup = env.get_markup_class("mytemplate.ext")
+        safe_str == Markup.escape("<unsafe\%string>")
+
+    If you write extensions, filters, etc., use the functions provided
+    by the :ref:`eval-context`.
+
+
+This is required as the :class:`Markup` class implements calls for its
+``Markup.escape`` method i.e. when using the ``join`` or
+the modulo ``%`` operator.
+So it is important that the correct :class:`Markup` subclass is used
+always. If you hardcode the `MarkupSafe`_ ``Markup`` class either in
+your application, :ref:`an extension <writing-extensions>`,
+:ref:`custom filter<writing-filters>` or
+:ref:`custom test <writing-tests>`,
+it could have unintended side effects once custom escape functions are used.
+
+
+The correct Markup class from a custom escape function is generated
+using the helper class:
+
+..
+    comment:: Somehow using the lru_cache wrapper the autodoc does not get the correct parameters
+              See also https://github.com/sphinx-doc/sphinx/issues/7650
+
+.. autofunction:: jinja2.utils.get_wrapped_escape_class
+
+.. _MarkupSafe: https://markupsafe.palletsprojects.com/
+
 .. _autoescaping:
 
 Autoescaping

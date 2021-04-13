@@ -251,7 +251,7 @@ class Environment:
         `default_escape`
             define a custom escape function or class.
 
-            If a class is given it is assumed to by a subclass of
+            If a class is given it is assumed to be a subclass of
             :class:`Markup`.
 
             If a function is given, it is assumed that this is an escape
@@ -259,7 +259,7 @@ class Environment:
             function will be used to generate a subclass of
             :class:`Markup` from this function.
             It also takes care that no already escaped strings are
-            escaped again. See :ref:`autoescaping`.
+            escaped again. See :ref:`autoescaping` and :ref:`escaping`.
 
             Default value is the HTML escape function of
             :class:`Markup`.
