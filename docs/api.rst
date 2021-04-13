@@ -815,6 +815,81 @@ Exceptions
 
 .. autoexception:: jinja2.TemplateAssertionError
 
+.. _eval-context:
+
+Evaluation Context
+------------------
+
+The evaluation context (short eval context or eval ctx) makes it
+possible to activate and deactivate compiled features at runtime.
+
+Currently it is only used to enable and disable automatic escaping, but
+it can be used by extensions as well.
+
+The ``autoescape`` setting should be checked on the evaluation context,
+not the environment. The evaluation context will have the computed value
+for the current template.
+
+Instead of ``pass_environment``:
+
+.. code-block:: python
+
+    @pass_environment
+    def filter(env, value):
+        result = do_something(value)
+
+        if env.autoescape:
+            result = Markup(result)
+
+        return result
+
+Use ``pass_eval_context`` if you only need the setting:
+
+.. code-block:: python
+
+    @pass_eval_context
+    def filter(eval_ctx, value):
+        result = do_something(value)
+
+        if eval_ctx.autoescape:
+            result = Markup(result)
+
+        return result
+
+Or use ``pass_context`` if you need other context behavior as well:
+
+.. code-block:: python
+
+    @pass_context
+    def filter(context, value):
+        result = do_something(value)
+
+        if context.eval_ctx.autoescape:
+            result = Markup(result)
+
+        return result
+
+The evaluation context must not be modified at runtime.  Modifications
+must only happen with a :class:`nodes.EvalContextModifier` and
+:class:`nodes.ScopedEvalContextModifier` from an extension, not on the
+eval context object itself.
+
+.. autoclass:: jinja2.nodes.EvalContext
+
+   .. attribute:: autoescape
+
+      `True` or `False` depending on if autoescaping is active or not.
+
+   .. attribute:: volatile
+
+      `True` if the compiler cannot evaluate some expressions at compile
+      time.  At runtime this should always be `False`.
+
+    .. automethod:: get_escape_function
+
+    .. automethod:: mark_safe
+
+
 
 .. _writing-filters:
 
@@ -934,81 +1009,6 @@ being filtered the second argument.
 -   :func:`pass_eval_context` passes the :ref:`eval-context`.
 -   :func:`pass_context` passes the current
     :class:`~jinja2.runtime.Context`.
-
-
-.. _eval-context:
-
-Evaluation Context
-------------------
-
-The evaluation context (short eval context or eval ctx) makes it
-possible to activate and deactivate compiled features at runtime.
-
-Currently it is only used to enable and disable automatic escaping, but
-it can be used by extensions as well.
-
-The ``autoescape`` setting should be checked on the evaluation context,
-not the environment. The evaluation context will have the computed value
-for the current template.
-
-Instead of ``pass_environment``:
-
-.. code-block:: python
-
-    @pass_environment
-    def filter(env, value):
-        result = do_something(value)
-
-        if env.autoescape:
-            result = Markup(result)
-
-        return result
-
-Use ``pass_eval_context`` if you only need the setting:
-
-.. code-block:: python
-
-    @pass_eval_context
-    def filter(eval_ctx, value):
-        result = do_something(value)
-
-        if eval_ctx.autoescape:
-            result = Markup(result)
-
-        return result
-
-Or use ``pass_context`` if you need other context behavior as well:
-
-.. code-block:: python
-
-    @pass_context
-    def filter(context, value):
-        result = do_something(value)
-
-        if context.eval_ctx.autoescape:
-            result = Markup(result)
-
-        return result
-
-The evaluation context must not be modified at runtime.  Modifications
-must only happen with a :class:`nodes.EvalContextModifier` and
-:class:`nodes.ScopedEvalContextModifier` from an extension, not on the
-eval context object itself.
-
-.. autoclass:: jinja2.nodes.EvalContext
-
-   .. attribute:: autoescape
-
-      `True` or `False` depending on if autoescaping is active or not.
-
-   .. attribute:: volatile
-
-      `True` if the compiler cannot evaluate some expressions at compile
-      time.  At runtime this should always be `False`.
-
-    .. automethod:: get_escape_function
-
-    .. automethod:: mark_safe
 
 
 .. _global-namespace:
