@@ -204,9 +204,8 @@ class Environment:
             ``None`` implicitly into an empty string here.
 
         `autoescape`
-            If set to ``True`` the XML/HTML autoescaping feature is enabled by
-            default.  For more details about autoescaping see
-            :class:`Markup`.
+            If set to ``True`` the autoescaping feature is enabled by
+            default.
 
             As of Jinja 2.4 this can also
             be a callable that is passed the template name and has to
@@ -226,7 +225,7 @@ class Environment:
             with custom ``default_escape`` (see below) for
             each file type.
 
-            See :ref:`autoescaping` for details.
+            See :ref:`escaping` and :ref:`autoescaping` for details.
 
             .. versionchanged:: 3.0
                 if the `autoescape` function doesn't return True or False but a
@@ -252,17 +251,16 @@ class Environment:
             define a custom escape function or class.
 
             If a class is given it is assumed to be a subclass of
-            :class:`Markup`.
+            :class:`markupsafe.Markup`.
 
             If a function is given, it is assumed that this is an escape
             function. The :func:`~jinja2.utils.get_wrapped_escape_class`
             function will be used to generate a subclass of
-            :class:`Markup` from this function.
+            :func:`markupsafe.escape` from the given escape function.
             It also takes care that no already escaped strings are
             escaped again. See :ref:`autoescaping` and :ref:`escaping`.
 
-            Default value is the HTML escape function of
-            :class:`Markup`.
+            Defaults to HTML based escape by :class:`markupsafe.Markup`
 
             The default value can be overwritten also by the ``autoescape``
             parameter if the result of ``autoescape(None)`` is a function.

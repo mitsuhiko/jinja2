@@ -941,7 +941,9 @@ class Markup(markupsafe.Markup):
     def __init__(self, *args, **kwargs):
         warnings.warn(
             "'jinja2.Markup' is deprecated and will be removed in Jinja"
-            " 3.1. Import 'markupsafe.Markup' instead.",
+            " 3.1. Use Environment.get_markup_class and "
+            "EvalContext.mark_safe instead. "
+            "(See Escape in API Documentation)",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -950,8 +952,10 @@ class Markup(markupsafe.Markup):
 
 def escape(s):
     warnings.warn(
-        "'jinja2.escape' is deprecated and will be removed in Jinja"
-        " 3.1. Import 'markupsafe.escape' instead.",
+        "'jinja2.Markup' is deprecated and will be removed in Jinja"
+        " 3.1. Use Environment.get_markup_class and "
+        "EvalContext.get_escape_function instead. "
+        "(See Escape in API Documentation)",
         DeprecationWarning,
         stacklevel=2,
     )

@@ -99,7 +99,7 @@ def escape(eval_ctx: "EvalContext", s: t.Union[str, "HasHTML"]) -> Markup:
     eval context
 
     .. versionadded:: 3.0
-        replaced the hard coded HTML escape function of ``markupsafe``
+        replaced the hard coded HTML :func:`markupsafe.escape` function
         with an context aware escape function
     """
     return eval_ctx.get_escape_function()(s)

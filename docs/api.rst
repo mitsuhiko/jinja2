@@ -222,7 +222,7 @@ useful if you want to dig deeper into Jinja or :ref:`develop extensions
 
 .. _escaping:
 
-Safe Strings and escaping
+Safe Strings and Escaping
 -------------------------
 .. versionchanged:: 3.0
 
@@ -236,9 +236,10 @@ multiple times and at the same time make sure, that using string
 operation like ``%`` the original escaped string stays escaped, even
 when unescaped string are thrown at it.
 
-Before Jinja 3.0 this was done by the hardcoded ``Markup`` class and
-``escape(s: str)`` function from the `MarkupSafe`_  package.
-The ``escape(s: str)`` function convert the characters
+Before Jinja 3.0 this was done by the hardcoded
+:class:`markupsafe.Markup` class and
+:func:`markupsafe.escape` function from the `MarkupSafe`_  package.
+The ``escape(s: str)`` function converts the characters
 ``&``, ``<``, ``>``, ``'``, and ``"`` in string `s`
 to HTML-safe sequences.  It is intended to be used  if you need to
 display text that might contain such characters in HTML.
@@ -252,7 +253,7 @@ System or things like widget in Jupter Notebook.
 
 The class also overwrites a bunch of string methods and operators like:
 ``str.join()``, ``str.split()``, ``str.__add__()``, ``str.__mod__()`` etc.
-This is done in a way sp that the result of these operations
+This is done in a way so that the result of these operations
 in combination with an raw strings is always an escaped ``Markup``
 class by using the ``escape`` method of the ``Markup`` class.
 
@@ -266,33 +267,36 @@ as result of an *autoescape* call.
 So now you can write autoescaped templates for LaTeX or other languages.
 See :ref:`autoescaping` for examples.
 Please note that a safe string is still defined through the existence of
-the ``__html__()`` method!
+the ``__html__()`` method, no matter which extension or language is used!
+
 
 .. admonition:: Attention
 
     Especially when using a custom escape function *never* use the
-    :class:`Markup` directly to mark a string as safe or to escape it.
+    :class:`markupsafe.Markup` or :func:`markupsafe.escape` directly
+    to mark a string as safe or to escape it.
     Instead use :meth:`Environment.get_markup_class` to get the
     correct class.
 
     Usage::
 
         Markup = env.get_markup_class("mytemplate.ext")
-        safe_str == Markup.escape("<unsafe\%string>")
+        safe_str = Markup.escape("<unsafe\%string>")
 
     If you write extensions, filters, etc., use the functions provided
     by the :ref:`eval-context`.
 
 
-This is required as the :class:`Markup` class implements calls for its
+This is required as the ``Markup`` class implements calls for its
 ``Markup.escape`` method i.e. when using the ``join`` or
 the modulo ``%`` operator.
-So it is important that the correct :class:`Markup` subclass is used
-always. If you hardcode the `MarkupSafe`_ ``Markup`` class either in
+So it is important that the correct ``Markup``  subclass is used
+always. If you hardcode the :class:`markupsafe.Markup` class or
+:func:`markupsafe.escape` function either in
 your application, :ref:`an extension <writing-extensions>`,
 :ref:`custom filter<writing-filters>` or
 :ref:`custom test <writing-tests>`,
-it could have unintended side effects once custom escape functions are used.
+it could have unintended side effects once custom escape functions are used!
 
 
 The correct Markup class from a custom escape function is generated
@@ -384,7 +388,7 @@ Note that for ``.world`` files the ``{{ var|e }}`` and ``{{ var | escape }}``
 filters are replaced with the custom escape function.
 
 To mark a string as safe please use the :meth:`Environment.get_markup_class`
-instead of direct :class:`Markup` calls::
+instead of direct :class:`markupsafe.Markup` calls::
 
 
     template = env.get_template("message_to_the.world")
