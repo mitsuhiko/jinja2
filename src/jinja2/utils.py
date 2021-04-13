@@ -1,7 +1,9 @@
+import enum
 import json
 import os
 import re
 import typing as t
+import warnings
 from collections import abc
 from collections import deque
 from functools import lru_cache
@@ -14,8 +16,10 @@ from typing import Callable
 from typing import Type
 from urllib.parse import quote_from_bytes
 
-from markupsafe import escape
-from markupsafe import Markup
+import markupsafe
+
+if t.TYPE_CHECKING:
+    F = t.TypeVar("F", bound=t.Callable[..., t.Any])
 
 # special singleton representing missing values for the runtime
 missing = type("MissingType", (), {"__repr__": lambda x: "missing"})()
@@ -28,43 +32,124 @@ concat = "".join
 _slash_escape = "\\/" not in json.dumps("/")
 
 
-def contextfunction(f):
-    """This decorator can be used to mark a function or method context callable.
-    A context callable is passed the active :class:`Context` as first argument when
-    called from the template.  This is useful if a function wants to get access
-    to the context or functions provided on the context object.  For example
-    a function that returns a sorted list of template variables the current
-    template exports could look like this::
+def pass_context(f: "F") -> "F":
+    """Pass the :class:`~jinja2.runtime.Context` as the first argument
+    to the decorated function when called while rendering a template.
 
-        @contextfunction
-        def get_exported_names(context):
-            return sorted(context.exported_vars)
+    Can be used on functions, filters, and tests.
+
+    If only ``Context.eval_context`` is needed, use
+    :func:`pass_eval_context`. If only ``Context.environment`` is
+    needed, use :func:`pass_environment`.
+
+    .. versionadded:: 3.0.0
+        Replaces ``contextfunction`` and ``contextfilter``.
     """
-    f.contextfunction = True
+    f.jinja_pass_arg = _PassArg.context  # type: ignore
     return f
+
+
+def pass_eval_context(f: "F") -> "F":
+    """Pass the :class:`~jinja2.nodes.EvalContext` as the first argument
+    to the decorated function when called while rendering a template.
+    See :ref:`eval-context`.
+
+    Can be used on functions, filters, and tests.
+
+    If only ``EvalContext.environment`` is needed, use
+    :func:`pass_environment`.
+
+    .. versionadded:: 3.0.0
+        Replaces ``evalcontextfunction`` and ``evalcontextfilter``.
+    """
+    f.jinja_pass_arg = _PassArg.eval_context  # type: ignore
+    return f
+
+
+def pass_environment(f: "F") -> "F":
+    """Pass the :class:`~jinja2.Environment` as the first argument to
+    the decorated function when called while rendering a template.
+
+    Can be used on functions, filters, and tests.
+
+    .. versionadded:: 3.0.0
+        Replaces ``environmentfunction`` and ``environmentfilter``.
+    """
+    f.jinja_pass_arg = _PassArg.environment  # type: ignore
+    return f
+
+
+class _PassArg(enum.Enum):
+    context = enum.auto()
+    eval_context = enum.auto()
+    environment = enum.auto()
+
+    @classmethod
+    def from_obj(cls, obj):
+        if hasattr(obj, "jinja_pass_arg"):
+            return obj.jinja_pass_arg
+
+        for prefix in "context", "eval_context", "environment":
+            squashed = prefix.replace("_", "")
+
+            for name in f"{squashed}function", f"{squashed}filter":
+                if getattr(obj, name, False) is True:
+                    warnings.warn(
+                        f"{name!r} is deprecated and will stop working"
+                        f" in Jinja 3.1. Use 'pass_{prefix}' instead.",
+                        DeprecationWarning,
+                        stacklevel=2,
+                    )
+                    return cls[prefix]
+
+
+def contextfunction(f):
+    """Pass the context as the first argument to the decorated function.
+
+    .. deprecated:: 3.0.0
+        Use :func:`~jinja2.pass_context` instead.
+    """
+    warnings.warn(
+        "'contextfunction' is renamed to 'pass_context', the old name"
+        " will be removed in Jinja 3.1.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return pass_context(f)
 
 
 def evalcontextfunction(f):
-    """This decorator can be used to mark a function or method as an eval
-    context callable.  This is similar to the :func:`contextfunction`
-    but instead of passing the context, an evaluation context object is
-    passed.  For more information about the eval context, see
-    :ref:`eval-context`.
+    """Pass the eval context as the first argument to the decorated
+    function.
+
+    .. deprecated:: 3.0.0
+        Use :func:`~jinja2.pass_eval_context` instead.
 
     .. versionadded:: 2.4
     """
-    f.evalcontextfunction = True
-    return f
+    warnings.warn(
+        "'evalcontextfunction' is renamed to 'pass_eval_context', the"
+        " old name will be removed in Jinja 3.1.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return pass_eval_context(f)
 
 
 def environmentfunction(f):
-    """This decorator can be used to mark a function or method as environment
-    callable.  This decorator works exactly like the :func:`contextfunction`
-    decorator just that the first argument is the active :class:`Environment`
-    and not context.
+    """Pass the environment as the first argument to the decorated
+    function.
+
+    .. deprecated:: 3.0.0
+        Use :func:`~jinja2.pass_environment` instead.
     """
-    f.environmentfunction = True
-    return f
+    warnings.warn(
+        "'environmentfunction' is renamed to 'pass_environment', the"
+        " old name will be removed in Jinja 3.1.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return pass_environment(f)
 
 
 def internalcode(f):
@@ -250,9 +335,9 @@ def urlize(
         def trim_url(x):
             return x
 
-    words = re.split(r"(\s+)", str(escape(text)))
-    rel_attr = f' rel="{escape(rel)}"' if rel else ""
-    target_attr = f' target="{escape(target)}"' if target else ""
+    words = re.split(r"(\s+)", str(markupsafe.escape(text)))
+    rel_attr = f' rel="{markupsafe.escape(rel)}"' if rel else ""
+    target_attr = f' target="{markupsafe.escape(target)}"' if target else ""
 
     for i, word in enumerate(words):
         head, middle, tail = "", word, ""
@@ -366,7 +451,9 @@ def generate_lorem_ipsum(n=5, html=True, min=20, max=100):
 
     if not html:
         return "\n\n".join(result)
-    return Markup("\n".join(f"<p>{escape(x)}</p>" for x in result))
+    return markupsafe.Markup(
+        "\n".join(f"<p>{markupsafe.escape(x)}</p>" for x in result)
+    )
 
 
 def url_quote(obj: t.Any, charset: str = "utf-8", for_qs: bool = False) -> str:
@@ -656,7 +743,7 @@ def select_autoescape(
 
 def htmlsafe_json_dumps(
     obj: t.Any, dumps: t.Optional[t.Callable[..., str]] = None, **kwargs: t.Any
-) -> Markup:
+) -> markupsafe.Markup:
     """Serialize an object to a string of JSON with :func:`json.dumps`,
     then replace HTML-unsafe characters with Unicode escapes and mark
     the result safe with :class:`~markupsafe.Markup`.
@@ -685,7 +772,7 @@ def htmlsafe_json_dumps(
     if dumps is None:
         dumps = json.dumps
 
-    return Markup(
+    return markupsafe.Markup(
         dumps(obj, **kwargs)
         .replace("<", "\\u003c")
         .replace(">", "\\u003e")
@@ -695,7 +782,9 @@ def htmlsafe_json_dumps(
 
 
 @lru_cache(100)
-def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup]:
+def get_wrapped_escape_class(
+    custom_escape: Callable[[Any], str]
+) -> Type[markupsafe.Markup]:
     """
     Use a simple escape function to generate a wrapped Markup class
 
@@ -714,7 +803,7 @@ def get_wrapped_escape_class(custom_escape: Callable[[Any], str]) -> Type[Markup
     .. versionadded:: 3.0
     """
 
-    class MarkupWrapper(Markup):
+    class MarkupWrapper(markupsafe.Markup):
         """
         Make sure that the custom escape function is used
         """
@@ -851,3 +940,24 @@ try:
     have_async_gen = True
 except SyntaxError:
     have_async_gen = False
+
+
+class Markup(markupsafe.Markup):
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "'jinja2.Markup' is deprecated and will be removed in Jinja"
+            " 3.1. Import 'markupsafe.Markup' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
+
+
+def escape(s):
+    warnings.warn(
+        "'jinja2.escape' is deprecated and will be removed in Jinja"
+        " 3.1. Import 'markupsafe.escape' instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return markupsafe.escape(s)

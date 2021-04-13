@@ -668,63 +668,28 @@ Utilities
 These helper functions and classes are useful if you add custom filters or
 functions to a Jinja environment.
 
-.. autofunction:: jinja2.environmentfilter
+.. autofunction:: jinja2.pass_context
+
+.. autofunction:: jinja2.pass_eval_context
+
+.. autofunction:: jinja2.pass_environment
 
 .. autofunction:: jinja2.contextfilter
 
 .. autofunction:: jinja2.evalcontextfilter
 
-.. autofunction:: jinja2.environmentfunction
+.. autofunction:: jinja2.environmentfilter
 
 .. autofunction:: jinja2.contextfunction
 
 .. autofunction:: jinja2.evalcontextfunction
 
-.. function:: escape(s)
-
-    Convert the characters ``&``, ``<``, ``>``, ``'``, and ``"`` in string `s`
-    to HTML-safe sequences.  Use this if you need to display text that might
-    contain such characters in HTML.  This function will not escaped objects
-    that do have an HTML representation such as already escaped data.
-
-    The return value is a :class:`Markup` string.
+.. autofunction:: jinja2.environmentfunction
 
 .. autofunction:: jinja2.clear_caches
 
 .. autofunction:: jinja2.is_undefined
 
-.. autoclass:: jinja2.Markup([string])
-    :members: escape, unescape, striptags
-
-.. admonition:: Note
-
-    The Jinja :class:`Markup` class is compatible with at least Pylons and
-    Genshi.  It's expected that more template engines and framework will pick
-    up the `__html__` concept soon.
-
-.. admonition:: Attention
-
-    Especially when using a custom escape function do not use the
-    :class:`Markup` directly to mark a string as safe or to escape it.
-    Instead use :meth:`Environment.get_markup_class` to get the
-    correct class.
-    Usage ``Markup = env.get_markup_class("mytemplate.ext")``
-
-
-This is required as the :class:`Markup` class implements calls for its
-``Markup.escape`` method i.e. when using the ``join`` or
-the modulo ``%`` operator.
-So it is important that the correct :class:`Markup` subclass is used
-when using custom escaping defined by the :ref:`autoescaping` settings.
-
-The correct Markup class from a custom escape function is generated
-using the helper class:
-
-..
-    comment:: Somehow using the lru_cache wrapper the autodoc does not get the correct parameters
-              See also https://github.com/sphinx-doc/sphinx/issues/7650
-
-.. autofunction:: jinja2.utils.get_wrapped_escape_class
 
 Exceptions
 ----------
@@ -797,9 +762,9 @@ Some decorators are available to tell Jinja to pass extra information to
 the filter. The object is passed as the first argument, making the value
 being filtered the second argument.
 
--   :func:`environmentfilter` passes the :class:`Environment`.
--   :func:`evalcontextfilter` passes the :ref:`eval-context`.
--   :func:`contextfilter` passes the current
+-   :func:`pass_environment` passes the :class:`Environment`.
+-   :func:`pass_eval_context` passes the :ref:`eval-context`.
+-   :func:`pass_context` passes the current
     :class:`~jinja2.runtime.Context`.
 
 Here's a filter that converts line breaks into HTML ``<br>`` and ``<p>``
@@ -809,10 +774,10 @@ enabled before escaping the input and marking the output safe.
 .. code-block:: python
 
     import re
-    from jinja2 import evalcontextfilter
+    from jinja2 import pass_eval_context
     from markupsafe import Markup, escape
 
-    @evalcontextfilter
+    @pass_eval_context
     def nl2br(eval_ctx, value):
         br = "<br>\n"
 
@@ -875,9 +840,9 @@ Some decorators are available to tell Jinja to pass extra information to
 the filter. The object is passed as the first argument, making the value
 being filtered the second argument.
 
--   :func:`environmentfunction` passes the :class:`Environment`.
--   :func:`evalcontextfunction` passes the :ref:`eval-context`.
--   :func:`contextfunction` passes the current
+-   :func:`pass_environment` passes the :class:`Environment`.
+-   :func:`pass_eval_context` passes the :ref:`eval-context`.
+-   :func:`pass_context` passes the current
     :class:`~jinja2.runtime.Context`.
 
 
@@ -886,44 +851,53 @@ being filtered the second argument.
 Evaluation Context
 ------------------
 
-The evaluation context (short eval context or eval ctx) is a new object
-introduced in Jinja 2.4 that makes it possible to activate and deactivate
-compiled features at runtime.
+The evaluation context (short eval context or eval ctx) makes it
+possible to activate and deactivate compiled features at runtime.
 
-Currently it is only used to enable and disable the automatic escaping but
-can be used for extensions as well.
+Currently it is only used to enable and disable automatic escaping, but
+it can be used by extensions as well.
 
-In previous Jinja versions filters and functions were marked as
-environment callables in order to check for the autoescape status from the
-environment.  In new versions it's encouraged to check the setting from the
-evaluation context instead.
+The ``autoescape`` setting should be checked on the evaluation context,
+not the environment. The evaluation context will have the computed value
+for the current template.
 
-Previous versions::
+Instead of ``pass_environment``:
 
-    @environmentfilter
+.. code-block:: python
+
+    @pass_environment
     def filter(env, value):
         result = do_something(value)
+
         if env.autoescape:
             result = Markup(result)
+
         return result
 
-In new versions you can either use a :func:`contextfilter` and access the
-evaluation context from the actual context, or use a
-:func:`evalcontextfilter` which directly passes the evaluation context to
-the function::
+Use ``pass_eval_context`` if you only need the setting:
 
-    @contextfilter
-    def filter(context, value):
-        result = do_something(value)
-        if context.eval_ctx.autoescape:
-            result = Markup(result)
-        return result
+.. code-block:: python
 
-    @evalcontextfilter
+    @pass_eval_context
     def filter(eval_ctx, value):
         result = do_something(value)
+
         if eval_ctx.autoescape:
             result = Markup(result)
+
+        return result
+
+Or use ``pass_context`` if you need other context behavior as well:
+
+.. code-block:: python
+
+    @pass_context
+    def filter(context, value):
+        result = do_something(value)
+
+        if context.eval_ctx.autoescape:
+            result = Markup(result)
+
         return result
 
 The evaluation context must not be modified at runtime.  Modifications

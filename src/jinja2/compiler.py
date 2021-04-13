@@ -18,6 +18,7 @@ from .idtracking import VAR_LOAD_RESOLVE
 from .idtracking import VAR_LOAD_UNDEFINED
 from .nodes import EvalContext
 from .optimizer import Optimizer
+from .utils import _PassArg
 from .utils import concat
 from .visitor import NodeVisitor
 
@@ -509,10 +510,11 @@ class CodeGenerator(NodeVisitor):
             if undefs:
                 self.writeline(f"{' = '.join(undefs)} = missing")
 
+    def choose_async(self, async_value="async ", sync_value=""):
+        return async_value if self.environment.is_async else sync_value
+
     def func(self, name):
-        if self.environment.is_async:
-            return f"async def {name}"
-        return f"def {name}"
+        return f"{self.choose_async()}def {name}"
 
     def macro_body(self, node, frame):
         """Dump the function def of a macro or call block."""
@@ -807,9 +809,8 @@ class CodeGenerator(NodeVisitor):
             if not self.environment.is_async:
                 self.writeline("yield from parent_template.root_render_func(context)")
             else:
-                loop = "async for" if self.environment.is_async else "for"
                 self.writeline(
-                    f"{loop} event in parent_template.root_render_func(context):"
+                    "async for event in parent_template.root_render_func(context):"
                 )
                 self.indent()
                 self.writeline("yield event")
@@ -883,9 +884,10 @@ class CodeGenerator(NodeVisitor):
                 f"yield from context.blocks[{node.name!r}][0]({context})", node
             )
         else:
-            loop = "async for" if self.environment.is_async else "for"
             self.writeline(
-                f"{loop} event in context.blocks[{node.name!r}][0]({context}):", node
+                f"{self.choose_async()}for event in"
+                f" context.blocks[{node.name!r}][0]({context}):",
+                node,
             )
             self.indent()
             self.simple_write("event", frame)
@@ -965,9 +967,8 @@ class CodeGenerator(NodeVisitor):
 
         skip_event_yield = False
         if node.with_context:
-            loop = "async for" if self.environment.is_async else "for"
             self.writeline(
-                f"{loop} event in template.root_render_func("
+                f"{self.choose_async()}for event in template.root_render_func("
                 "template.new_context(context.get_all(), True,"
                 f" {self.dump_local_context(frame)})):"
             )
@@ -988,45 +989,37 @@ class CodeGenerator(NodeVisitor):
         if node.ignore_missing:
             self.outdent()
 
-    def visit_Import(self, node, frame):
-        """Visit regular imports."""
-        self.writeline(f"{frame.symbols.ref(node.target)} = ", node)
-        if frame.toplevel:
-            self.write(f"context.vars[{node.target!r}] = ")
-        if self.environment.is_async:
-            self.write("await ")
-        self.write("environment.get_template(")
+    def _import_common(self, node, frame):
+        self.write(f"{self.choose_async('await ')}environment.get_template(")
         self.visit(node.template, frame)
         self.write(f", {self.name!r}).")
+
         if node.with_context:
-            func = "make_module" + ("_async" if self.environment.is_async else "")
+            f_name = f"make_module{self.choose_async('_async')}"
             self.write(
-                f"{func}(context.get_all(), True, {self.dump_local_context(frame)})"
+                f"{f_name}(context.get_all(), True, {self.dump_local_context(frame)})"
             )
         elif self.environment.is_async:
             self.write("_get_default_module_async()")
         else:
             self.write("_get_default_module(context)")
+
+    def visit_Import(self, node, frame):
+        """Visit regular imports."""
+        self.writeline(f"{frame.symbols.ref(node.target)} = ", node)
+        if frame.toplevel:
+            self.write(f"context.vars[{node.target!r}] = ")
+
+        self._import_common(node, frame)
+
         if frame.toplevel and not node.target.startswith("_"):
             self.writeline(f"context.exported_vars.discard({node.target!r})")
 
     def visit_FromImport(self, node, frame):
         """Visit named imports."""
         self.newline(node)
-        prefix = "await " if self.environment.is_async else ""
-        self.write(f"included_template = {prefix}environment.get_template(")
-        self.visit(node.template, frame)
-        self.write(f", {self.name!r}).")
-        if node.with_context:
-            func = "make_module" + ("_async" if self.environment.is_async else "")
-            self.write(
-                f"{func}(context.get_all(), True, {self.dump_local_context(frame)})"
-            )
-        elif self.environment.is_async:
-            self.write("_get_default_module_async()")
-        else:
-            self.write("_get_default_module(context)")
-
+        self.write("included_template = ")
+        self._import_common(node, frame)
         var_names = []
         discarded_names = []
         for name in node.names:
@@ -1102,10 +1095,10 @@ class CodeGenerator(NodeVisitor):
             self.writeline(f"{self.func(loop_filter_func)}(fiter):", node.test)
             self.indent()
             self.enter_frame(test_frame)
-            self.writeline("async for " if self.environment.is_async else "for ")
+            self.writeline(self.choose_async("async for ", "for "))
             self.visit(node.target, loop_frame)
             self.write(" in ")
-            self.write("auto_aiter(fiter)" if self.environment.is_async else "fiter")
+            self.write(self.choose_async("auto_aiter(fiter)", "fiter"))
             self.write(":")
             self.indent()
             self.writeline("if ", node.test)
@@ -1146,11 +1139,10 @@ class CodeGenerator(NodeVisitor):
             iteration_indicator = self.temporary_identifier()
             self.writeline(f"{iteration_indicator} = 1")
 
-        self.writeline("async for " if self.environment.is_async else "for ", node)
+        self.writeline(self.choose_async("async for ", "for "), node)
         self.visit(node.target, loop_frame)
         if extended_loop:
-            prefix = "Async" if self.environment.is_async else ""
-            self.write(f", {loop_ref} in {prefix}LoopContext(")
+            self.write(f", {loop_ref} in {self.choose_async('Async')}LoopContext(")
         else:
             self.write(" in ")
 
@@ -1198,9 +1190,7 @@ class CodeGenerator(NodeVisitor):
             self.return_buffer_contents(loop_frame)
             self.outdent()
             self.start_write(frame, node)
-            if self.environment.is_async:
-                self.write("await ")
-            self.write("loop(")
+            self.write(f"{self.choose_async('await ')}loop(")
             if self.environment.is_async:
                 self.write("auto_aiter(")
             self.visit(node.iter, frame)
@@ -1304,21 +1294,25 @@ class CodeGenerator(NodeVisitor):
         if self.environment.finalize:
             src = "environment.finalize("
             env_finalize = self.environment.finalize
+            pass_arg = {
+                _PassArg.context: "context",
+                _PassArg.eval_context: "context.eval_ctx",
+                _PassArg.environment: "environment",
+            }.get(_PassArg.from_obj(env_finalize))
+            finalize = None
 
-            def finalize(value):
-                return default(env_finalize(value))
-
-            if getattr(env_finalize, "contextfunction", False) is True:
-                src += "context, "
-                finalize = None  # noqa: F811
-            elif getattr(env_finalize, "evalcontextfunction", False) is True:
-                src += "context.eval_ctx, "
-                finalize = None
-            elif getattr(env_finalize, "environmentfunction", False) is True:
-                src += "environment, "
+            if pass_arg is None:
 
                 def finalize(value):
-                    return default(env_finalize(self.environment, value))
+                    return default(env_finalize(value))
+
+            else:
+                src = f"{src}{pass_arg}, "
+
+                if pass_arg == "environment":
+
+                    def finalize(value):
+                        return default(env_finalize(self.environment, value))
 
         self._finalize = self._FinalizeInfo(finalize, src)
         return self._finalize
@@ -1690,13 +1684,11 @@ class CodeGenerator(NodeVisitor):
         if is_filter:
             compiler_map = self.filters
             env_map = self.environment.filters
-            type_name = mark_name = "filter"
+            type_name = "filter"
         else:
             compiler_map = self.tests
             env_map = self.environment.tests
             type_name = "test"
-            # Filters use "contextfilter", tests and calls use "contextfunction".
-            mark_name = "function"
 
         if self.environment.is_async:
             self.write("await auto_await(")
@@ -1710,12 +1702,14 @@ class CodeGenerator(NodeVisitor):
         if func is None and not frame.soft_frame:
             self.fail(f"No {type_name} named {node.name!r}.", node.lineno)
 
-        if getattr(func, f"context{mark_name}", False) is True:
-            self.write("context, ")
-        elif getattr(func, f"evalcontext{mark_name}", False) is True:
-            self.write("context.eval_ctx, ")
-        elif getattr(func, f"environment{mark_name}", False) is True:
-            self.write("environment, ")
+        pass_arg = {
+            _PassArg.context: "context",
+            _PassArg.eval_context: "context.eval_ctx",
+            _PassArg.environment: "environment",
+        }.get(_PassArg.from_obj(func))
+
+        if pass_arg is not None:
+            self.write(f"{pass_arg}, ")
 
         # Back to the visitor function to handle visiting the target of
         # the filter or test.
