@@ -249,7 +249,7 @@ The result of a call of the ``escape(s: str)`` function is a
 This class provides an ``.__html__()`` method, which is used internally
 as an indicator that the string returned by this method is safe.
 This way of defining a save/HTML string is also used by other Template
-System or things like widget in Jupter Notebook.
+System or things like widget in Jupyter Notebook.
 
 The class also overwrites a bunch of string methods and operators like:
 ``str.join()``, ``str.split()``, ``str.__add__()``, ``str.__mod__()`` etc.
