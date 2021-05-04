@@ -4,8 +4,7 @@ import typing as t
 from collections import abc
 from itertools import chain
 
-from markupsafe import escape  # noqa: F401
-from markupsafe import Markup
+from markupsafe import escape as html_escape  # noqa: F401
 from markupsafe import soft_str
 
 from .async_utils import auto_aiter
@@ -30,11 +29,10 @@ exported = [
     "LoopContext",
     "TemplateReference",
     "Macro",
-    "Markup",
     "TemplateRuntimeError",
     "missing",
     "concat",
-    "escape",
+    "html_escape",
     "markup_join",
     "str_join",
     "identity",
@@ -57,19 +55,31 @@ def identity(x):
     return x
 
 
-def markup_join(seq):
-    """Concatenation that escapes if necessary and converts to string."""
+def markup_join(seq, escape_func=html_escape):
+    """
+    Concatenation that escapes if necessary and converts to string.
+
+    .. versionchanged:: 3.0
+        added optional parameter escape_function to make
+        use the contex based escape function
+    """
     buf = []
     iterator = map(soft_str, seq)
     for arg in iterator:
         buf.append(arg)
         if hasattr(arg, "__html__"):
-            return Markup("").join(chain(buf, iterator))
+            return "".join(map(escape_func, chain(buf, iterator)))
     return concat(buf)
 
 
-def str_join(seq):
-    """Simple args to string conversion and concatenation."""
+def str_join(seq, escape_func=html_escape):
+    """
+    Simple args to string conversion and concatenation.
+
+    .. versionchanged:: 3.0
+            added optional and currently ignored parameter
+            ``escape_function`` to allow easier usage of ``markup_join``
+    """
     return concat(map(str, seq))
 
 
@@ -394,7 +404,7 @@ class BlockReference:
         rv = concat([x async for x in self._stack[self._depth](self._context)])
 
         if self._context.eval_ctx.autoescape:
-            return Markup(rv)
+            return self._context.eval_ctx.mark_safe(rv)
 
         return rv
 
@@ -406,8 +416,7 @@ class BlockReference:
         rv = concat(self._stack[self._depth](self._context))
 
         if self._context.eval_ctx.autoescape:
-            return Markup(rv)
-
+            rv = self._context.eval_ctx.mark_safe(rv)
         return rv
 
 
@@ -684,6 +693,7 @@ class Macro:
         default_autoescape=None,
     ):
         self._environment = environment
+        self._mark_safe = environment.default_markup_class
         self._func = func
         self._argument_count = len(arguments)
         self.name = name
@@ -715,8 +725,14 @@ class Macro:
         # argument to callables otherwise anyway.  Worst case here is
         # that if no eval context is passed we fall back to the compile
         # time autoescape flag.
+
         if args and isinstance(args[0], EvalContext):
             autoescape = args[0].autoescape
+            # If the eval context is available we use it to determine
+            # the correct mark safe method
+            # otherwise mark safe is already set in the __init__
+            # function from enviromental context
+            self._mark_safe = args[0].mark_safe
             args = args[1:]
         else:
             autoescape = self._default_autoescape
@@ -778,7 +794,7 @@ class Macro:
         rv = await self._func(*arguments)
 
         if autoescape:
-            return Markup(rv)
+            return self._mark_safe(rv)
 
         return rv
 
@@ -789,8 +805,7 @@ class Macro:
         rv = self._func(*arguments)
 
         if autoescape:
-            rv = Markup(rv)
-
+            rv = self._mark_safe(rv)
         return rv
 
     def __repr__(self):

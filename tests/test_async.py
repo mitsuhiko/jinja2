@@ -132,6 +132,34 @@ def test_env_async():
     return env
 
 
+@pytest.fixture
+def test_env_async_custom_autoescape(return_custom_autoescape):
+    env = Environment(
+        loader=DictLoader(
+            dict(
+                module=(
+                    "{% macro test(foo) %}[dollar$"
+                    "{{ foo }}"
+                    "|{{ bar }}"
+                    "|{{ the_context|default('>default$') }}]{% endmacro %}"
+                ),
+                module_join=(
+                    "{% macro test(foo) %}[dollar$"
+                    '{{ foo|join(",") }}'
+                    '|{{ bar_list|join(",") }}'
+                    '|{{ the_context|default([">default$"])|join(",") }}]'
+                    "{% endmacro %}"
+                ),
+            )
+        ),
+        enable_async=True,
+        autoescape=return_custom_autoescape,
+    )
+    env.globals["bar"] = ">23$"
+    env.globals["bar_list"] = (">23€", ">24$")
+    return env
+
+
 class TestAsyncImports:
     def test_context_imports(self, test_env_async):
         t = test_env_async.from_string('{% import "module" as m %}{{ m.test() }}')
@@ -154,6 +182,60 @@ class TestAsyncImports:
             '{% from "module" import test with context %}{{ test() }}'
         )
         assert t.render(foo=42) == "[42|23]"
+
+    def test_context_imports_with_custom_escape(self, test_env_async_custom_autoescape):
+        test_env_async = test_env_async_custom_autoescape
+
+        t = test_env_async.from_string('{% import "module" as m %}{{ m.test(arg) }}')
+        assert (
+            t.render(arg=">escaped_dollar$", the_context=">context$")
+            == "[dollar$>escaped_dollar€|>23€|>default€]"
+        )
+
+        t = test_env_async.from_string(
+            '{% import "module" as m without context %}{{ m.test(arg) }}'
+        )
+        assert (
+            t.render(arg=">escaped_dollar$", the_context=">context$")
+            == "[dollar$>escaped_dollar€|>23€|>default€]"
+        )
+
+        t = test_env_async.from_string(
+            '{% from "module" import test with context %}{{ test(arg) }}'
+        )
+        assert (
+            t.render(arg=">escaped_dollar$", the_context=">context$")
+            == "[dollar$>escaped_dollar€|>23€|>context€]"
+        )
+
+    def test_context_imports_with_custom_escape_and_joins(
+        self, test_env_async_custom_autoescape
+    ):
+        test_env_async = test_env_async_custom_autoescape
+
+        t = test_env_async.from_string(
+            '{% import "module_join" as m %}{{ m.test(arg) }}'
+        )
+        assert (
+            t.render(arg=[">1$", ">2$", ">3$"], the_context=[">42$", ">43$"])
+            == "[dollar$>1€,>2€,>3€|>23€,>24€|>default€]"
+        )
+
+        t = test_env_async.from_string(
+            '{% import "module_join" as m without context %}{{ m.test(arg) }}'
+        )
+        assert (
+            t.render(arg=[">1$", ">2$", ">3$"], the_context=[">42$", ">43$"])
+            == "[dollar$>1€,>2€,>3€|>23€,>24€|>default€]"
+        )
+
+        t = test_env_async.from_string(
+            '{% from "module_join" import test with context %}{{ test(arg) }}'
+        )
+        assert (
+            t.render(arg=[">1$", ">2$", ">3$"], the_context=[">42$", ">43$"])
+            == "[dollar$>1€,>2€,>3€|>23€,>24€|>42€,>43€]"
+        )
 
     def test_trailing_comma(self, test_env_async):
         test_env_async.from_string('{% from "foo" import bar, baz with context %}')
@@ -258,7 +340,7 @@ class TestAsyncIncludes:
         )
         assert t.render().strip() == "(FOO)"
 
-    def test_unoptimized_scopes_autoescape(self):
+    def test_unoptimized_scopes_autoescape(self, return_custom_autoescape):
         env = Environment(
             loader=DictLoader({"o_printer": "({{ o }})"}),
             autoescape=True,
@@ -272,10 +354,31 @@ class TestAsyncIncludes:
             {% endmacro %}
             {{ inner() }}
             {% endmacro %}
-            {{ outer("FOO") }}
+            {{ outer("<FOO>") }}
         """
         )
-        assert t.render().strip() == "(FOO)"
+        assert t.render().strip() == "(&lt;FOO&gt;)"
+
+    def test_unoptimized_scopes_custom_autoescape(self, return_custom_autoescape):
+        env = Environment(
+            loader=DictLoader({"o_printer": "({{ o }})"}),
+            autoescape=return_custom_autoescape,
+            enable_async=True,
+        )
+        t = env.from_string(
+            """
+            {% macro outer(o) %}
+            {% macro inner() %}
+            {% include "o_printer" %}
+            {% endmacro %}
+            {{ inner() }}
+            {% endmacro %}
+            {{ outer("$FOO$") }}
+        """
+        )
+        assert t.render().strip() == "(€FOO€)"
+
+    # here
 
 
 class TestAsyncForLoop:

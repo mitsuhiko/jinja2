@@ -27,6 +27,7 @@ i18n_templates = {
     "plural2.html": "{% trans user_count=get_user_count() %}{{ user_count }}s"
     "{% pluralize %}{{ user_count }}p{% endtrans %}",
     "stringformat.html": '{{ _("User: %(num)s")|format(num=user_count) }}',
+    "custom.foo": '{{ foo|default(_("ten $")) }}"',
 }
 
 newstyle_i18n_templates = {
@@ -54,6 +55,7 @@ newstyle_i18n_templates = {
 
 languages = {
     "de": {
+        "ten $": "zehn $",
         "missing": "fehlend",
         "watch out": "pass auf",
         "One user online": "Ein Benutzer online",
@@ -544,6 +546,29 @@ class TestNewstyleInternationalization:
         assert t.render(ae=True) == "<strong>Wert: &lt;test&gt;</strong>"
         assert t.render(ae=False) == "<strong>Wert: <test></strong>"
 
+    def test_custom_autoescape_support(self, return_custom_autoescape):
+        env = Environment(
+            extensions=["jinja2.ext.i18n"], autoescape=return_custom_autoescape
+        )
+        env.install_gettext_callables(
+            lambda x: "<strong>Wert: %(name)s</strong>",
+            lambda s, p, n: s,
+            newstyle=True,
+        )
+        # First test default behaviour
+        t = env.from_string("{{ foo }}")
+        assert t.render(foo="bar$") == "bar€"
+
+        t = env.from_string('{{ gettext("foo", name="$test$") }}')
+        assert t.render() == "<strong>Wert: €test€</strong>"
+
+        t = env.from_string(
+            '{% autoescape ae %}{{ gettext("foo", name='
+            '"$test$") }}{% endautoescape %}'
+        )
+        assert t.render(ae=True) == "<strong>Wert: €test€</strong>"
+        assert t.render(ae=False) == "<strong>Wert: $test$</strong>"
+
     def test_autoescape_macros(self):
         env = Environment(autoescape=False)
         template = (
@@ -633,6 +658,41 @@ class TestAutoEscape:
             "<HelloWorld>",
         ]
 
+    def test_scoped_setting_custom_escape(
+        self, env_custom_autoescape, custom_escape_func
+    ):
+        env = env_custom_autoescape
+        tmpl = env.from_string(
+            """
+            {{ "<HelloWorld$>" }}
+            {% autoescape false %}
+                {{ "<HelloWorld$>" }}
+            {% endautoescape %}
+            {{ "<HelloWorld$>" }}
+        """
+        )
+        assert tmpl.render().split() == [
+            "<HelloWorld€>",
+            "<HelloWorld$>",
+            "<HelloWorld€>",
+        ]
+
+        env = Environment(autoescape=False, default_escape=custom_escape_func)
+        tmpl = env.from_string(
+            """
+            {{ "<HelloWorld$>" }}
+            {% autoescape true %}
+                {{ "<HelloWorld$>" }}
+            {% endautoescape %}
+            {{ "<HelloWorld$>" }}
+        """
+        )
+        assert tmpl.render().split() == [
+            "<HelloWorld$>",
+            "<HelloWorld€>",
+            "<HelloWorld$>",
+        ]
+
     def test_nonvolatile(self):
         env = Environment(autoescape=True)
         tmpl = env.from_string('{{ {"foo": "<test>"}|xmlattr|escape }}')
@@ -643,6 +703,19 @@ class TestAutoEscape:
         )
         assert tmpl.render() == " foo=&#34;&amp;lt;test&amp;gt;&#34;"
 
+    def test_nonvolatile_custom_escape(self, custom_escape_func):
+        def escape_more(s):
+            return custom_escape_func(s).replace('"', "&#34;")
+
+        env = Environment(autoescape=lambda x: escape_more)
+        tmpl = env.from_string('{{ {"foo": "<test$>"}|xmlattr|escape }}')
+        assert tmpl.render() == ' foo="<test€>"'
+        tmpl = env.from_string(
+            '{% autoescape false %}{{ {"foo": "<test$>"}'
+            "|xmlattr|escape }}{% endautoescape %}"
+        )
+        assert tmpl.render() == " foo=&#34;<test€>&#34;"
+
     def test_volatile(self):
         env = Environment(autoescape=True)
         tmpl = env.from_string(
@@ -652,6 +725,18 @@ class TestAutoEscape:
         assert tmpl.render(foo=False) == " foo=&#34;&amp;lt;test&amp;gt;&#34;"
         assert tmpl.render(foo=True) == ' foo="&lt;test&gt;"'
 
+    def test_volatile_custom_escape(self, custom_escape_func):
+        def escape_more(s):
+            return custom_escape_func(s).replace('"', "&#34;")
+
+        env = Environment(autoescape=lambda x: escape_more)
+        tmpl = env.from_string(
+            '{% autoescape foo %}{{ {"foo": "<test$>"}'
+            "|xmlattr|escape }}{% endautoescape %}"
+        )
+        assert tmpl.render(foo=True) == ' foo="<test€>"'
+        assert tmpl.render(foo=False) == " foo=&#34;<test€>&#34;"
+
     def test_scoping(self):
         env = Environment()
         tmpl = env.from_string(
@@ -659,6 +744,14 @@ class TestAutoEscape:
             '{% endautoescape %}{{ x }}{{ "<y>" }}'
         )
         assert tmpl.render(x=1) == "&lt;x&gt;1<y>"
+
+    def test_scoping_custom_escape(self, custom_escape_func):
+        env = Environment(default_escape=custom_escape_func)
+        tmpl = env.from_string(
+            '{% autoescape true %}{% set x = "<x$>" %}{{ x }}'
+            '{% endautoescape %}{{ x }}{{ "<y$>" }}'
+        )
+        assert tmpl.render(x=1) == "<x€>1<y$>"
 
     def test_volatile_scoping(self):
         env = Environment()
@@ -684,6 +777,31 @@ class TestAutoEscape:
         env = Environment(autoescape=True)
         pysource = env.compile(tmplsource, raw=True)
         assert "&lt;testing&gt;\\n" in pysource
+
+    def test_volatile_scoping_custom_escape(self, return_custom_autoescape):
+        env = Environment(autoescape=return_custom_autoescape)
+        tmplsource = """
+        {% autoescape val %}
+            {% macro foo(x) %}
+                [{{ x }}]
+            {% endmacro %}
+            {{ foo('bar').__class__.__name__ }}
+        {% endautoescape %}
+        {{ '<testing$>' }}
+        """
+        tmpl = env.from_string(tmplsource)
+        assert tmpl.render(val=True).split()[0] == "MarkupWrapper"
+        assert tmpl.render(val=False).split()[0] == "str"
+
+        # looking at the source we should see <testing> there in raw
+        # (and then escaped as well)
+        env = Environment()
+        pysource = env.compile(tmplsource, raw=True)
+        assert "<testing$>\\n" in pysource
+
+        env = Environment(autoescape=return_custom_autoescape)
+        pysource = env.compile(tmplsource, raw=True)
+        assert "<testing€>\\n" in pysource
 
     def test_overlay_scopes(self):
         class MagicScopeExtension(Extension):

@@ -5,8 +5,6 @@ import warnings
 from sys import version_info
 from typing import Set
 
-from markupsafe import Markup
-
 from . import nodes
 from .defaults import BLOCK_END_STRING
 from .defaults import BLOCK_START_STRING
@@ -145,7 +143,7 @@ def _make_new_gettext(func):
     def gettext(__context, __string, **variables):
         rv = __context.call(func, __string)
         if __context.eval_ctx.autoescape:
-            rv = Markup(rv)
+            rv = __context.eval_ctx.mark_safe(rv)
         # Always treat as a format string, even if there are no
         # variables. This makes translation strings more consistent
         # and predictable. This requires escaping
@@ -160,7 +158,7 @@ def _make_new_ngettext(func):
         variables.setdefault("num", __num)
         rv = __context.call(func, __singular, __plural, __num)
         if __context.eval_ctx.autoescape:
-            rv = Markup(rv)
+            rv = __context.eval_ctx.mark_safe(rv)
         # Always treat as a format string, see gettext comment above.
         return rv % variables
 
@@ -174,7 +172,7 @@ def _make_new_pgettext(func):
         rv = __context.call(func, __string_ctx, __string)
 
         if __context.eval_ctx.autoescape:
-            rv = Markup(rv)
+            rv = __context.eval_ctx.mark_safe(rv)
 
         # Always treat as a format string, see gettext comment above.
         return rv % variables
@@ -190,7 +188,7 @@ def _make_new_npgettext(func):
         rv = __context.call(func, __string_ctx, __singular, __plural, __num)
 
         if __context.eval_ctx.autoescape:
-            rv = Markup(rv)
+            rv = __context.eval_ctx.mark_safe(rv)
 
         # Always treat as a format string, see gettext comment above.
         return rv % variables
